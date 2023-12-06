@@ -34,7 +34,7 @@ GoCQRS is a Go package designed to facilitate the implementation of the Command 
 To use GoCQRS in your project, you can install it by running:
 
 ```go
-go get -u github.com/victoragudo/gocqrs
+go get -u github.com/victoragudo/go-cqrs
 ```
 
 ## Import Statement
