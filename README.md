@@ -211,5 +211,3 @@ go func() {
 ```
 
 Using these functions as Go routines allows you to efficiently handle multiple operations in parallel, taking full advantage of Go's concurrency model. This approach is particularly useful in scenarios where your application needs to handle high volumes of commands, queries, or events simultaneously.
-
-Ensure that your application properly handles concurrency, including synchronization and error handling, to maintain data integrity and reliability.
