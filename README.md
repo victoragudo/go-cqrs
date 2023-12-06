@@ -80,6 +80,7 @@ func (h *GetUserQueryHandler) Handle(ctx context.Context, query GetUserQuery) (U
 func main() {
     getUserQueryHandler := &GetUserQueryHandler{}
     gocqrs.AddQueryHandler[GetUserQuery, User](getUserQueryHandler)
+    userResponse, err := gocqrs.SendQuery[User](context.Background(), GetUserQuery{UserID: "1234"})
 }
 ```
 
