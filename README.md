@@ -1,4 +1,4 @@
-# A thread-safe Golang CQRS library using mediator pattern
+# A thread-safe go CQRS library using mediator pattern
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 
@@ -33,15 +33,23 @@ GoCQRS is a Go package designed to facilitate the implementation of the Command 
 
 To use GoCQRS in your project, you can install it by running:
 
-```
+```go
 go get -u github.com/victoragudo/gocqrs
 ```
 
+## Import Statement
+
+To import the GoCQRS package into your Go application, use the following import statement:
+
+```go
+import gocqrs "github.com/victoragudo/go-cqrs"
+```
+
 ## Adding a command handler
-```golang
+```go
 // Example of adding a command handler and sending a command
-AddCommandHandler[YourCommandType, YourResponseType](yourCommandHandler)
-response, err := SendCommand[YourResponseType](context.Background(), yourCommand)
+gocqrs.AddCommandHandler[YourCommandType, YourResponseType](yourCommandHandler)
+response, err := gocqrs.SendCommand[YourResponseType](context.Background(), yourCommand)
 ```
 
 ## Adding a Query Handler
@@ -49,7 +57,7 @@ To add a query handler, first define the handler that implements the IQueryHandl
 
 ### Suppose you have a query `GetUserQuery` and its response type `User`. Here's how you could register a handler for this query:
 
-```golang
+```go
 type GetUserQuery struct {
     UserID string
 }
@@ -71,7 +79,7 @@ func (h *GetUserQueryHandler) Handle(ctx context.Context, query GetUserQuery) (U
 // In your main function or setup
 func main() {
     getUserQueryHandler := &GetUserQueryHandler{}
-    AddQueryHandler[GetUserQuery, User](getUserQueryHandler)
+    gocqrs.AddQueryHandler[GetUserQuery, User](getUserQueryHandler)
 }
 ```
 
@@ -80,7 +88,7 @@ To add event handlers, define each handler implementing the IEventHandler interf
 
 ### Assume you have an event `UserCreatedEvent` and you wish to add multiple handlers for this event. Each handler should implement the `IEventHandler` interface for `UserCreatedEvent`.
 
-```golang
+```go
 type UserCreatedEvent struct {
     UserID string
 }
@@ -106,7 +114,7 @@ func main() {
     emailHandler := &EmailNotificationHandler{}
     logHandler := &LogEventHandler{}
 
-    AddEventHandlers[UserCreatedEvent](emailHandler, logHandler)
+    gocqrs.AddEventHandlers[UserCreatedEvent](emailHandler, logHandler)
 }
 ```
 
@@ -115,7 +123,7 @@ Suppose you have an event named UserCreatedEvent, and you want to add two differ
 
 ### In this example, we have an event called `UserCreatedEvent`. We want to add two handlers for this event: `EmailNotificationHandler` and `LogEventHandler`.
 
-```golang
+```go
 type UserCreatedEvent struct {
     UserID string
 }
@@ -147,7 +155,7 @@ func main() {
     logHandler := &LogEventHandler{}
 
     // Add both handlers for the UserCreatedEvent
-    err := AddEventHandlers[UserCreatedEvent](emailHandler, logHandler)
+    err := gocqrs.AddEventHandlers[UserCreatedEvent](emailHandler, logHandler)
     if err != nil {
         // Handle the error
     }
@@ -167,10 +175,10 @@ In Go, leveraging concurrency is a common practice to enhance performance and re
 
 ### The `SendCommand`, `SendQuery`, and `PublishEvent` functions in the GoCQRS package can be used as Go routines. This approach is beneficial when you need to process multiple commands, queries, or events concurrently, improving throughput and responsiveness of your application.
 
-```golang
+```go
 // Example of using SendCommand in a Go routine
 go func() {
-    response, err := SendCommand[YourResponseType](context.Background(), yourCommand)
+    response, err := gocqrs.SendCommand[YourResponseType](context.Background(), yourCommand)
     if err != nil {
         // Handle error
     }
@@ -179,7 +187,7 @@ go func() {
 
 // Example of using SendQuery in a Go routine
 go func() {
-    result, err := SendQuery[YourQueryType](context.Background(), yourQuery)
+    result, err := gocqrs.SendQuery[YourQueryType](context.Background(), yourQuery)
     if err != nil {
         // Handle error
     }
@@ -188,7 +196,7 @@ go func() {
 
 // Example of using PublishEvent in a Go routine
 go func() {
-    err := PublishEvent(context.Background(), yourEvent)
+    err := gocqrs.PublishEvent(context.Background(), yourEvent)
     if err != nil {
         // Handle error
     }
