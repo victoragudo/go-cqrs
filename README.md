@@ -1,5 +1,10 @@
 # A thread-safe GoLang CQRS library using mediator pattern
 
+<div align="center">
+  <img src="img.png" width="300">
+</div>
+
+
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 
 GoCQRS is a Go package designed to facilitate the implementation of the Command Query Responsibility Segregation (CQRS) pattern in Go applications. This package provides a straightforward and type-safe way to handle commands, queries, and events within your application.
