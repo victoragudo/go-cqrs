@@ -1,4 +1,4 @@
-# A thread-safe go CQRS library using mediator pattern
+# A thread-safe GoLang CQRS library using mediator pattern
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 
