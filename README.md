@@ -6,7 +6,7 @@
 
 
 [![Licence](https://img.shields.io/github/license/Ileriayo/markdown-badges?style=for-the-badge)](./LICENSE)
-![Go](https://img.shields.io/badge/v1.0.0-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
+![Go](https://img.shields.io/badge/1.21-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
 
 GoCQRS is a Go package designed to facilitate the implementation of the Command Query Responsibility Segregation (CQRS) pattern in Go applications. This package provides a straightforward and type-safe way to handle commands, queries, and events within your application.
 
