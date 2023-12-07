@@ -75,3 +75,24 @@ func TestAddCommandHandler(t *testing.T) {
 		})
 	}
 }
+
+type command struct{}
+type response struct{}
+
+func Test_SendUnregisteredCommand(t *testing.T) {
+	AddCommandHandler[commandRequestTest, commandResponseTest](newCommandHandlerWrapperTest(func(cmdRequestTest commandRequestTest) (commandResponseTest, error) {
+		return commandResponseTest{
+			data: "data",
+		}, nil
+	}))
+
+	myResponse, err := SendCommand[response](context.Background(), command{})
+	if (response{}) != myResponse || err == nil {
+		t.Fail()
+	}
+
+	responseOk, err := SendCommand[commandResponseTest](context.Background(), commandRequestTest{})
+	if (commandResponseTest{}) == responseOk || err != nil {
+		t.Fail()
+	}
+}
