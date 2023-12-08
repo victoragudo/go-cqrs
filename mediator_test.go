@@ -98,10 +98,11 @@ func (m *MockEventHandler) Handle(ctx context.Context, event string) error {
 func TestPublishEvent(t *testing.T) {
 	ctx := context.Background()
 	event := "test event"
-	AddEventHandlers[string](newMockEventHandler())
+	err := AddEventHandlers[string](newMockEventHandler())
+	assertNotNilError(t, err)
 
 	// Success case
-	err := PublishEvent(ctx, event)
+	err = PublishEvent(ctx, event)
 	assertNilError(t, err)
 
 	// Error case: no registered handlers
@@ -205,7 +206,8 @@ func TestPublishEvent_Concurrency(t *testing.T) {
 
 	// Create and register multiple event handlers
 	for i := 0; i < numHandlers; i++ {
-		AddEventHandlers[string](newMockEventHandler())
+		err := AddEventHandlers[string](newMockEventHandler())
+		assertNotNilError(t, err)
 	}
 
 	// Channel to receive errors from each goroutine.
