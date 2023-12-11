@@ -8,18 +8,19 @@ import (
 )
 
 type (
+	MiddlewareFunc func(ctx context.Context, command T) (chain bool)
 	// AddMiddlewareBuilder is a struct used for building middlewares
 	// for a specific command handler.
 	AddMiddlewareBuilder struct {
 		currentHandlerName string
-		commandMiddlewares map[string][]handlerMiddleware
-		queryMiddlewares   map[string][]handlerMiddleware
-		requestType        requestType
+		t                  requestType
+		preMiddlewares     map[string][]middlewareStruct
+		postMiddlewares    map[string][]middlewareStruct
 	}
-	// handlerMiddleware represents a middleware with its name and the function itself.
-	handlerMiddleware struct {
+	// middlewareStruct represents a middleware with its name and the function itself.
+	middlewareStruct struct {
 		middlewareName string
-		middleware     func(next IHandler[T, T]) IHandler[T, T]
+		middlewareFunc MiddlewareFunc
 	}
 	// reflectiveHandler is a struct that allows the invocation of a method using reflection.
 	// T1 and T2 are generic types for input and output respectively.
@@ -28,71 +29,84 @@ type (
 	}
 )
 
-// AddMiddleware adds a middleware to the current handler.
-// It extracts the middlewares name using reflection and runtime information.
-func (middlewareBuilder *AddMiddlewareBuilder) AddMiddleware(middleware func(next IHandler[T, T]) IHandler[T, T]) *AddMiddlewareBuilder {
-	if middlewareBuilder.requestType == commandType {
-		return middlewareBuilder.addCommandMiddleware(middleware)
+// executePreMiddlewares runs the pre-middlewares chain with the given command and context
+// It returns err if any error occurs.
+func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context.Context, command T, handlerName string) {
+	if middlewares, ok := middlewareBuilder.preMiddlewares[handlerName]; ok {
+		for _, m := range middlewares {
+			chain := m.middlewareFunc(ctx, command)
+			if !chain {
+				// Middleware has stopped the chain.
+				return
+			}
+		}
 	}
-	return middlewareBuilder.addQueryMiddleware(middleware)
+	return
 }
 
-func (middlewareBuilder *AddMiddlewareBuilder) addCommandMiddleware(middleware func(next IHandler[T, T]) IHandler[T, T]) *AddMiddlewareBuilder {
-	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(middleware).Pointer()).Name(), "*")
-
-	var middlewares []handlerMiddleware
-	var ok bool
-
-	middlewares, ok = middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName]
-
-	hMiddleware := handlerMiddleware{
-		middlewareName: typedMiddlewareName,
-		middleware:     middleware,
+// executePreMiddlewares runs the pre-middlewares chain with the given command and context
+// It returns err if any error occurs.
+func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, command T, handlerName string) {
+	if middlewares, ok := middlewareBuilder.postMiddlewares[handlerName]; ok {
+		for _, m := range middlewares {
+			chain := m.middlewareFunc(ctx, command)
+			if !chain {
+				// Middleware has stopped the chain.
+				return
+			}
+		}
 	}
+	return
+}
 
-	// If the handler does not have any middleware yet, initialize its slice.
+func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
+	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
+
+	middleware := middlewareStruct{
+		middlewareName: typedMiddlewareName,
+		middlewareFunc: m,
+	}
+	middlewares, ok := middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName]
 	if !ok {
-		middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName] = []handlerMiddleware{hMiddleware}
+		middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName] = []middlewareStruct{
+			middleware,
+		}
 		return middlewareBuilder
 	}
 
 	// Add the middleware to the handler if it's not already registered.
 	if !isMiddlewareRegisteredForHandler(&middlewares, typedMiddlewareName) {
-		middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName] =
-			append(middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName], hMiddleware)
+		middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName] =
+			append(middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName], middleware)
 	}
 	return middlewareBuilder
 }
 
-func (middlewareBuilder *AddMiddlewareBuilder) addQueryMiddleware(middleware func(next IHandler[T, T]) IHandler[T, T]) *AddMiddlewareBuilder {
-	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(middleware).Pointer()).Name(), "*")
+func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
+	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
 
-	var middlewares []handlerMiddleware
-	var ok bool
-
-	middlewares, ok = middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName]
-
-	hMiddleware := handlerMiddleware{
+	middleware := middlewareStruct{
 		middlewareName: typedMiddlewareName,
-		middleware:     middleware,
+		middlewareFunc: m,
 	}
-
-	// If the handler does not have any middleware yet, initialize its slice.
+	middlewares, ok := middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName]
 	if !ok {
-		middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName] = []handlerMiddleware{hMiddleware}
+		middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName] = []middlewareStruct{
+			middleware,
+		}
 		return middlewareBuilder
 	}
 
 	// Add the middleware to the handler if it's not already registered.
 	if !isMiddlewareRegisteredForHandler(&middlewares, typedMiddlewareName) {
-		middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName] =
-			append(middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName], hMiddleware)
+		middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName] =
+			append(middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName], middleware)
 	}
 	return middlewareBuilder
 }
 
 // isMiddlewareRegisteredForHandler checks if a middleware is already registered for a handler.
-func isMiddlewareRegisteredForHandler(middlewares *[]handlerMiddleware, middlewareName string) bool {
+func isMiddlewareRegisteredForHandler(middlewares *[]middlewareStruct, middlewareName string) bool {
 	for _, middleware := range *middlewares {
 		if middleware.middlewareName == middlewareName {
 			return true

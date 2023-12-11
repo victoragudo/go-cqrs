@@ -11,10 +11,8 @@ import (
 
 // Declare global variables for storing handlers and their mutexes for synchronization.
 var (
-	commandHandlers   map[string]any
-	commandMutex      sync.RWMutex
-	queryHandlers     map[string]any
-	queryMutex        sync.RWMutex
+	handlers          map[string]any
+	handlerMutex      sync.RWMutex
 	eventHandlers     sync.Map
 	middlewareBuilder AddMiddlewareBuilder
 )
@@ -29,19 +27,17 @@ const (
 
 // init initializes variables
 func init() {
-	commandMutex = sync.RWMutex{}
-	queryMutex = sync.RWMutex{}
-	queryHandlers = make(map[string]any)
-	commandHandlers = make(map[string]any)
+	handlers = make(map[string]any)
+	handlerMutex = sync.RWMutex{}
 	eventHandlers = sync.Map{}
 	middlewareBuilder = AddMiddlewareBuilder{
-		commandMiddlewares: make(map[string][]handlerMiddleware),
-		queryMiddlewares:   make(map[string][]handlerMiddleware),
+		preMiddlewares:  make(map[string][]middlewareStruct),
+		postMiddlewares: make(map[string][]middlewareStruct),
 	}
 }
 
 // AddQueryHandler registers a query handler.
-func AddQueryHandler[Query T, QueryResponse T](handler IHandler[Query, QueryResponse]) *AddMiddlewareBuilder {
+/*func AddQueryHandler[Query T, QueryResponse T](handler IHandler[Query, QueryResponse]) *AddMiddlewareBuilder {
 	// Determine the type name of the Query generic parameter, removing the pointer symbol if present.
 	typedQuery := strings.TrimPrefix(reflect.TypeOf(new(Query)).String(), "*")
 
@@ -52,9 +48,10 @@ func AddQueryHandler[Query T, QueryResponse T](handler IHandler[Query, QueryResp
 	storeMapValue(queryHandlers, typedQuery, newHandlerWrapper[Query, QueryResponse](handler, typedHandlerName), &queryMutex)
 
 	middlewareBuilder.currentHandlerName = typedHandlerName
-	middlewareBuilder.requestType = queryType
+	middlewareBuilder.t = queryType
 	return &middlewareBuilder
 }
+*/
 
 // AddCommandHandler registers a command handler.
 func AddCommandHandler[Command T, CommandResponse T](handler IHandler[Command, CommandResponse]) *AddMiddlewareBuilder {
@@ -65,10 +62,10 @@ func AddCommandHandler[Command T, CommandResponse T](handler IHandler[Command, C
 	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
 
 	// Store command handler for a specific command as a wrapper
-	storeMapValue(commandHandlers, typedCommand, newHandlerWrapper[Command, CommandResponse](handler, typedHandlerName), &commandMutex)
+	storeMapValue(handlers, typedCommand, newHandlerWrapper[Command, CommandResponse](handler, typedHandlerName), &handlerMutex)
 
 	middlewareBuilder.currentHandlerName = typedHandlerName
-	middlewareBuilder.requestType = commandType
+	middlewareBuilder.t = commandType
 	return &middlewareBuilder
 }
 
@@ -125,11 +122,7 @@ func send[Response T](ctx context.Context, in any, reqType requestType) (Respons
 	var value any
 	var ok bool
 
-	if reqType == commandType {
-		value, ok = getMapValue(commandHandlers, typedIn, &commandMutex)
-	} else {
-		value, ok = getMapValue(queryHandlers, typedIn, &queryMutex)
-	}
+	value, ok = getMapValue(handlers, typedIn, &handlerMutex)
 
 	// If no handler is found for the command, return the zero value and an error.
 	if !ok {
@@ -152,28 +145,24 @@ func send[Response T](ctx context.Context, in any, reqType requestType) (Respons
 	}
 
 	handlerName := (handlerNameField.Interface()).(string)
-	middlewares := make([]handlerMiddleware, 0)
 
-	if reqType == commandType {
-		middlewares, ok = middlewareBuilder.commandMiddlewares[handlerName]
-	} else {
-		middlewares, ok = middlewareBuilder.queryMiddlewares[handlerName]
-	}
+	middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
+	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
+	middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
 
-	if len(middlewares) > 0 {
+	return response.(Response), err
+	/*if len(middlewares) > 0 {
 		handler := createReflectiveHandler[Response](handleMethod)
 		var h IHandler[T, T]
 		var response any
 		var err error
 		for _, middleware := range middlewares {
-			h = middleware.middleware(handler)
+			h, _ = middleware.MiddlewareFunc(in)
 			response, err = h.Handle(ctx, in)
 		}
 		return response.(Response), err
-	}
+	}*/
 
-	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
-	return response.(Response), err
 }
 
 // PublishEvent publishes an event of a generic type T to all registered event handlers.
