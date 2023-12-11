@@ -13,45 +13,62 @@ import (
 var (
 	commandHandlers   map[string]any
 	commandMutex      sync.RWMutex
-	queryHandlers     sync.Map
+	queryHandlers     map[string]any
+	queryMutex        sync.RWMutex
 	eventHandlers     sync.Map
 	middlewareBuilder AddMiddlewareBuilder
 )
 
+type requestType int
+
+const (
+	commandType requestType = iota
+	eventType
+	queryType
+)
+
 // init initializes variables
 func init() {
-	commandHandlers = make(map[string]any)
 	commandMutex = sync.RWMutex{}
-	queryHandlers = sync.Map{}
+	queryMutex = sync.RWMutex{}
+	queryHandlers = make(map[string]any)
+	commandHandlers = make(map[string]any)
 	eventHandlers = sync.Map{}
 	middlewareBuilder = AddMiddlewareBuilder{
 		commandMiddlewares: make(map[string][]handlerMiddleware),
+		queryMiddlewares:   make(map[string][]handlerMiddleware),
 	}
 }
 
 // AddQueryHandler registers a query handler.
-func AddQueryHandler[TQuery T, QueryResponse T](handler IHandler[TQuery, QueryResponse]) *AddMiddlewareBuilder {
-	// Determine the type name of the TQuery generic parameter, removing the pointer symbol if present.
-	typedQueryRequest := strings.TrimPrefix(reflect.TypeOf(new(TQuery)).String(), "*")
+func AddQueryHandler[Query T, QueryResponse T](handler IHandler[Query, QueryResponse]) *AddMiddlewareBuilder {
+	// Determine the type name of the Query generic parameter, removing the pointer symbol if present.
+	typedQuery := strings.TrimPrefix(reflect.TypeOf(new(Query)).String(), "*")
 
-	queryHandlers.Store(typedQueryRequest, newHandlerWrapper[TQuery, QueryResponse](handler, ""))
+	// Determine the type name of the handler parameter, removing the pointer symbol if present.
+	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
 
-	middlewareBuilder.currentHandlerName = typedQueryRequest
+	// Store query handler for a specific query as a wrapper
+	storeMapValue(queryHandlers, typedQuery, newHandlerWrapper[Query, QueryResponse](handler, typedHandlerName), &queryMutex)
+
+	middlewareBuilder.currentHandlerName = typedHandlerName
+	middlewareBuilder.requestType = queryType
 	return &middlewareBuilder
 }
 
 // AddCommandHandler registers a command handler.
-func AddCommandHandler[TCommand T, TResponse T](handler IHandler[TCommand, TResponse]) *AddMiddlewareBuilder {
+func AddCommandHandler[Command T, CommandResponse T](handler IHandler[Command, CommandResponse]) *AddMiddlewareBuilder {
 	// Determine the type name of the TCommand generic parameter, removing the pointer symbol if present.
-	typedCommandRequest := strings.TrimPrefix(reflect.TypeOf(new(TCommand)).String(), "*")
+	typedCommand := strings.TrimPrefix(reflect.TypeOf(new(Command)).String(), "*")
 
 	// Determine the type name of the handler parameter, removing the pointer symbol if present.
 	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
 
 	// Store command handler for a specific command as a wrapper
-	storeMapValue(commandHandlers, typedCommandRequest, newHandlerWrapper[TCommand, TResponse](handler, typedHandlerName), &commandMutex)
+	storeMapValue(commandHandlers, typedCommand, newHandlerWrapper[Command, CommandResponse](handler, typedHandlerName), &commandMutex)
 
 	middlewareBuilder.currentHandlerName = typedHandlerName
+	middlewareBuilder.requestType = commandType
 	return &middlewareBuilder
 }
 
@@ -89,98 +106,72 @@ func AddEventHandlers[TEvent T](handlers ...IEventHandler[TEvent]) error {
 
 // SendCommand executes a command by finding the appropriate handler.
 // It is a generic function parameterized by 'CommandResponse T', where 'T' is the expected response type for the command.
-func SendCommand[TResponse T](ctx context.Context, command any) (TResponse, error) {
-	// Retrieve the type of the command request as a string, removing the pointer symbol (*) if present.
-	typedCommand := strings.TrimPrefix(reflect.TypeOf(command).String(), "*")
-
-	// Create a zero value instance of CommandResponse.
-	zero := *new(TResponse)
-
-	value, ok := getMapValue(commandHandlers, typedCommand, &commandMutex)
-	// If no handler is found for the command, return the zero value and an error.
-	if !ok {
-		return zero, fmt.Errorf("no handler found for this command: %v", typedCommand)
-	}
-
-	handlerField, ok := getField(value, "Handler")
-	if !ok {
-		return zero, fmt.Errorf("no Handler field found: %T", value)
-	}
-
-	handleMethod, ok := getMethodByName(handlerField, "Handle")
-	if !ok {
-		return zero, fmt.Errorf("no Handle method found for handler: %T", handlerField)
-	}
-
-	params := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(command)}
-
-	handlerNameField, ok := getField(value, "Name")
-	if !ok {
-		return zero, fmt.Errorf("no handler name found: %T", value)
-	}
-
-	handlerName := (handlerNameField.Interface()).(string)
-	middlewares, ok := middlewareBuilder.commandMiddlewares[handlerName]
-
-	if len(middlewares) > 0 {
-		// Call the handle method with the registered middlewares of the command handler, passing the context and command request.
-		handler := createReflectiveHandler[TResponse](handleMethod)
-		var h IHandler[T, T]
-		for _, middleware := range middlewares {
-			h = middleware.middleware(handler)
-		}
-		response, err := h.Handle(ctx, command)
-		return response.(TResponse), err
-	} else {
-		results := handleMethod.Call(params)
-
-		if len(results) >= 2 {
-			var err error
-			if results[1].IsNil() {
-				err = nil
-			} else {
-				err, _ = results[1].Interface().(error)
-			}
-			return (results[0].Interface()).(TResponse), err
-		}
-		// If the assertion fails, return the zero value and no error.
-		return zero, nil
-	}
+func SendCommand[CommandResponse T](ctx context.Context, command any) (CommandResponse, error) {
+	return send[CommandResponse](ctx, command, commandType)
 }
 
 // SendQuery executes a query by finding the appropriate handler.
 // It is a generic function parameterized by 'QueryResponse T', where 'T' is the expected response type.
-func SendQuery[TQuery T](ctx context.Context, query T) (TQuery, error) {
-	// Get the type of the query request, removing the pointer symbol (*) if present.
-	typedQuery := strings.TrimPrefix(reflect.TypeOf(query).String(), "*")
+func SendQuery[QueryResponse T](ctx context.Context, query any) (QueryResponse, error) {
+	return send[QueryResponse](ctx, query, queryType)
+}
 
-	// Attempt to find a query handler for the given type of query in a concurrent map.
-	v, ok := queryHandlers.Load(typedQuery)
+func send[Response T](ctx context.Context, in any, reqType requestType) (Response, error) {
+	// Retrieve the type of the request as a string, removing the pointer symbol (*) if present.
+	typedIn := strings.TrimPrefix(reflect.TypeOf(in).String(), "*")
 
-	// Create a zero value of the generic type QueryResponse.
-	zeroValue := *new(TQuery)
+	// Create a zero value instance of Response.
+	zero := *new(Response)
+	var value any
+	var ok bool
 
-	// If no handler is found for the query, return the zero value and an error.
+	if reqType == commandType {
+		value, ok = getMapValue(commandHandlers, typedIn, &commandMutex)
+	} else {
+		value, ok = getMapValue(queryHandlers, typedIn, &queryMutex)
+	}
+
+	// If no handler is found for the command, return the zero value and an error.
 	if !ok {
-		return zeroValue, fmt.Errorf("no handler found for this query: %v", typedQuery)
+		return zero, fmt.Errorf("handler not found for this request: %v", typedIn)
 	}
 
-	// Assert that the retrieved value is of the expected interface type (IQueryHandler).
-	queryHandler := v.(IHandler[T, T])
-
-	// Use the handler to process the query, passing the context and the query itself.
-	queryResponse, err := queryHandler.Handle(ctx, query)
-
-	// Attempt to assert that the response is of the expected type (QueryResponse).
-	response, ok := queryResponse.(TQuery)
-
-	// If the assertion is successful, return the response and any error encountered.
-	if ok {
-		return response, err
+	handlerField, ok := getField(value, "Handler")
+	if !ok {
+		return zero, fmt.Errorf("[Handler] field found: %T", value)
 	}
 
-	// If the assertion fails, return the zero value and no error.
-	return zeroValue, nil
+	handleMethod, ok := getMethodByName(handlerField, "Handle")
+	if !ok {
+		return zero, fmt.Errorf("[Handle] method not found for handler: %T", handlerField)
+	}
+
+	handlerNameField, ok := getField(value, "Name")
+	if !ok {
+		return zero, fmt.Errorf("[Name] field not found found: %T", value)
+	}
+
+	handlerName := (handlerNameField.Interface()).(string)
+	middlewares := make([]handlerMiddleware, 0)
+
+	if reqType == commandType {
+		middlewares, ok = middlewareBuilder.commandMiddlewares[handlerName]
+	} else {
+		middlewares, ok = middlewareBuilder.queryMiddlewares[handlerName]
+	}
+
+	if len(middlewares) > 0 {
+		handler := createReflectiveHandler[Response](handleMethod)
+		var h IHandler[T, T]
+		for _, middleware := range middlewares {
+			h = middleware.middleware(handler)
+		}
+		response, err := h.Handle(ctx, in)
+		return response.(Response), err
+	}
+
+	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
+	return response.(Response), err
 }
 
 // PublishEvent publishes an event of a generic type T to all registered event handlers.
@@ -235,15 +226,4 @@ func PublishEvent(ctx context.Context, event T) error {
 	// If execution reaches here, it means all handlers executed without error.
 	// Return nil indicating successful execution.
 	return nil
-}
-
-// checkTypeNameInEventHandlers checks if the string is in the slice of structs.
-// It returns true if the string is found, false otherwise.
-func checkTypeNameInEventHandlers(typeName string, eventHandlers []eventHandlersType) bool {
-	for _, v := range eventHandlers {
-		if v.typeName == typeName {
-			return true
-		}
-	}
-	return false
 }

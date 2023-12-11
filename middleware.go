@@ -13,6 +13,8 @@ type (
 	AddMiddlewareBuilder struct {
 		currentHandlerName string
 		commandMiddlewares map[string][]handlerMiddleware
+		queryMiddlewares   map[string][]handlerMiddleware
+		requestType        requestType
 	}
 	// handlerMiddleware represents a middleware with its name and the function itself.
 	handlerMiddleware struct {
@@ -29,9 +31,19 @@ type (
 // AddMiddleware adds a middleware to the current handler.
 // It extracts the middlewares name using reflection and runtime information.
 func (middlewareBuilder *AddMiddlewareBuilder) AddMiddleware(middleware func(next IHandler[T, T]) IHandler[T, T]) *AddMiddlewareBuilder {
+	if middlewareBuilder.requestType == commandType {
+		return middlewareBuilder.addCommandMiddleware(middleware)
+	}
+	return middlewareBuilder.addQueryMiddleware(middleware)
+}
+
+func (middlewareBuilder *AddMiddlewareBuilder) addCommandMiddleware(middleware func(next IHandler[T, T]) IHandler[T, T]) *AddMiddlewareBuilder {
 	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(middleware).Pointer()).Name(), "*")
 
-	middlewares, ok := middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName]
+	var middlewares []handlerMiddleware
+	var ok bool
+
+	middlewares, ok = middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName]
 
 	hMiddleware := handlerMiddleware{
 		middlewareName: typedMiddlewareName,
@@ -48,6 +60,33 @@ func (middlewareBuilder *AddMiddlewareBuilder) AddMiddleware(middleware func(nex
 	if !isMiddlewareRegisteredForHandler(&middlewares, typedMiddlewareName) {
 		middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName] =
 			append(middlewareBuilder.commandMiddlewares[middlewareBuilder.currentHandlerName], hMiddleware)
+	}
+	return middlewareBuilder
+}
+
+func (middlewareBuilder *AddMiddlewareBuilder) addQueryMiddleware(middleware func(next IHandler[T, T]) IHandler[T, T]) *AddMiddlewareBuilder {
+	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(middleware).Pointer()).Name(), "*")
+
+	var middlewares []handlerMiddleware
+	var ok bool
+
+	middlewares, ok = middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName]
+
+	hMiddleware := handlerMiddleware{
+		middlewareName: typedMiddlewareName,
+		middleware:     middleware,
+	}
+
+	// If the handler does not have any middleware yet, initialize its slice.
+	if !ok {
+		middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName] = []handlerMiddleware{hMiddleware}
+		return middlewareBuilder
+	}
+
+	// Add the middleware to the handler if it's not already registered.
+	if !isMiddlewareRegisteredForHandler(&middlewares, typedMiddlewareName) {
+		middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName] =
+			append(middlewareBuilder.queryMiddlewares[middlewareBuilder.currentHandlerName], hMiddleware)
 	}
 	return middlewareBuilder
 }
