@@ -163,10 +163,12 @@ func send[Response T](ctx context.Context, in any, reqType requestType) (Respons
 	if len(middlewares) > 0 {
 		handler := createReflectiveHandler[Response](handleMethod)
 		var h IHandler[T, T]
+		var response any
+		var err error
 		for _, middleware := range middlewares {
 			h = middleware.middleware(handler)
+			response, err = h.Handle(ctx, in)
 		}
-		response, err := h.Handle(ctx, in)
 		return response.(Response), err
 	}
 
