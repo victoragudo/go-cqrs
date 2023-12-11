@@ -12,6 +12,7 @@ import (
 // Declare global variables for storing handlers and their mutexes for synchronization.
 var (
 	commandHandlers   map[string]any
+	commandMutex      sync.RWMutex
 	queryHandlers     sync.Map
 	eventHandlers     sync.Map
 	middlewareBuilder AddMiddlewareBuilder
@@ -20,6 +21,7 @@ var (
 // init initializes variables
 func init() {
 	commandHandlers = make(map[string]any)
+	commandMutex = sync.RWMutex{}
 	queryHandlers = sync.Map{}
 	eventHandlers = sync.Map{}
 	middlewareBuilder = AddMiddlewareBuilder{
@@ -47,7 +49,7 @@ func AddCommandHandler[TCommand T, TResponse T](handler IHandler[TCommand, TResp
 	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
 
 	// Store command handler for a specific command as a wrapper
-	storeMapValue(commandHandlers, typedCommandRequest, newHandlerWrapper[TCommand, TResponse](handler, typedHandlerName))
+	storeMapValue(commandHandlers, typedCommandRequest, newHandlerWrapper[TCommand, TResponse](handler, typedHandlerName), &commandMutex)
 
 	middlewareBuilder.currentHandlerName = typedHandlerName
 	return &middlewareBuilder
@@ -94,7 +96,7 @@ func SendCommand[TResponse T](ctx context.Context, command any) (TResponse, erro
 	// Create a zero value instance of CommandResponse.
 	zero := *new(TResponse)
 
-	value, ok := getMapValue(commandHandlers, typedCommand)
+	value, ok := getMapValue(commandHandlers, typedCommand, &commandMutex)
 	// If no handler is found for the command, return the zero value and an error.
 	if !ok {
 		return zero, fmt.Errorf("no handler found for this command: %v", typedCommand)
