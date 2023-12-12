@@ -56,18 +56,18 @@ func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context
 
 // executePostMiddlewares runs post-middlewares for a given request and context.
 // If any middleware returns false, the chain is stopped.
-func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, request T, handlerName string) T {
+func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, request T, handlerName string) {
 	if middlewares, ok := middlewareBuilder.postMiddlewares[handlerName]; ok {
 		for _, m := range middlewares {
 			var chain bool
 			ctx, request, chain = m.middlewareFunc(ctx, request)
 			if !chain {
 				// Middleware has stopped the chain.
-				return request
+				return
 			}
 		}
 	}
-	return request
+	return
 }
 
 // PreMiddleware adds a pre-middleware to the current handler.

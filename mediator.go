@@ -131,7 +131,7 @@ func send[Response T](ctx context.Context, in any) (Response, error) {
 
 	in = middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
 	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
-	in = middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
+	middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
 
 	if response != nil {
 		return response.(Response), err
