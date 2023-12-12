@@ -64,13 +64,20 @@ func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx contex
 
 // PreMiddleware adds a pre-middleware to the current handler.
 func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
+
+	// Extract the name of the middleware function using reflection and strip the pointer indicator.
 	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
 
+	// Create a middlewareStruct instance with the middleware name and function.
 	middleware := middlewareStruct{
 		middlewareName: typedMiddlewareName,
 		middlewareFunc: m,
 	}
+
+	// Retrieve the slice of pre-middlewares associated with the current handler from the middlewareBuilder.
 	middlewares, ok := middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName]
+
+	// If the current handler does not have any pre-middlewares, initialize it with the new middleware.
 	if !ok {
 		middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName] = []middlewareStruct{
 			middleware,
@@ -79,22 +86,32 @@ func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *
 	}
 
 	// Add the middleware to the handler if it's not already registered.
+	// This is a check to avoid registering the same middleware multiple times for a handler.
 	if !isMiddlewareRegisteredForHandler(&middlewares, typedMiddlewareName) {
 		middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName] =
 			append(middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName], middleware)
 	}
+
+	// Return the middlewareBuilder to allow method chaining.
 	return middlewareBuilder
 }
 
 // PostMiddleware adds a post-middleware to the current handler.
 func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
+
+	// Extract the name of the middleware function using reflection and strip the pointer indicator.
 	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
 
+	// Create a middlewareStruct instance with the middleware name and function.
 	middleware := middlewareStruct{
 		middlewareName: typedMiddlewareName,
 		middlewareFunc: m,
 	}
+
+	// Retrieve the slice of post-middlewares associated with the current handler from the middlewareBuilder.
 	middlewares, ok := middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName]
+
+	// If the current handler does not have any post-middlewares, initialize it with the new middleware.
 	if !ok {
 		middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName] = []middlewareStruct{
 			middleware,
@@ -103,10 +120,13 @@ func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) 
 	}
 
 	// Add the middleware to the handler if it's not already registered.
+	// This is a check to avoid registering the same middleware multiple times for a handler.
 	if !isMiddlewareRegisteredForHandler(&middlewares, typedMiddlewareName) {
 		middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName] =
 			append(middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName], middleware)
 	}
+
+	// Return the middlewareBuilder to allow method chaining.
 	return middlewareBuilder
 }
 
