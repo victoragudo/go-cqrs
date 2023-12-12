@@ -17,14 +17,6 @@ var (
 	middlewareBuilder AddMiddlewareBuilder
 )
 
-type requestType int
-
-const (
-	commandType requestType = iota
-	eventType
-	queryType
-)
-
 // init initializes variables
 func init() {
 	handlers = make(map[string]any)
@@ -65,7 +57,6 @@ func AddCommandHandler[Command T, CommandResponse T](handler IHandler[Command, C
 	storeMapValue(handlers, typedCommand, newHandlerWrapper[Command, CommandResponse](handler, typedHandlerName), &handlerMutex)
 
 	middlewareBuilder.currentHandlerName = typedHandlerName
-	middlewareBuilder.t = commandType
 	return &middlewareBuilder
 }
 

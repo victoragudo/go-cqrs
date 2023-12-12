@@ -9,28 +9,36 @@ import (
 )
 
 type (
-	MiddlewareFunc func(ctx context.Context, command any) (context.Context, any, bool)
-	// AddMiddlewareBuilder is a struct used for building middlewares
-	// for a specific command handler.
+	// MiddlewareFunc defines a function type used for middleware.
+	// It takes a context and a request (of any type), and returns a potentially modified context,
+	// a result (of any type), and a boolean to indicate whether to proceed with further processing.
+	MiddlewareFunc func(ctx context.Context, request any) (context.Context, any, bool)
+
+	// AddMiddlewareBuilder is a struct used for building middleware chains
+	// for a specific command/query/event handler. It stores the name of the current handler
+	// and maps of pre- and post-middlewares associated with that handler.
 	AddMiddlewareBuilder struct {
-		currentHandlerName string
-		t                  requestType
-		preMiddlewares     map[string][]middlewareStruct
-		postMiddlewares    map[string][]middlewareStruct
+		currentHandlerName string                        // Name of the handler for which middlewares are being added.
+		preMiddlewares     map[string][]middlewareStruct // Map of pre-middlewares for each handler.
+		postMiddlewares    map[string][]middlewareStruct // Map of post-middlewares for each handler.
 	}
+
 	// middlewareStruct represents a middleware with its name and the function itself.
+	// It is used to store individual middleware functions along with their names.
 	middlewareStruct struct {
-		middlewareName string
-		middlewareFunc MiddlewareFunc
+		middlewareName string         // Name of the middleware.
+		middlewareFunc MiddlewareFunc // The middleware function.
 	}
+
 	// reflectiveHandler is a struct that allows the invocation of a method using reflection.
-	// T1 and T2 are generic types for input and output respectively.
+	// It is generic and can handle methods with different input (T1) and output (T2) types.
+	// This structure is useful for creating flexible and dynamic handler functions.
 	reflectiveHandler[T1 T, T2 T] struct {
-		method reflect.Value
+		method reflect.Value // The method to be invoked, stored as a reflect.Value.
 	}
 )
 
-// executePreMiddlewares runs pre-middlewares for a given command and context.
+// executePreMiddlewares runs pre-middlewares for a given request and context.
 // If any middleware returns false, the chain is stopped.
 func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context.Context, request T, handlerName string) T {
 	if middlewares, ok := middlewareBuilder.preMiddlewares[handlerName]; ok {
@@ -46,7 +54,7 @@ func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context
 	return request
 }
 
-// executePostMiddlewares runs post-middlewares for a given command and context.
+// executePostMiddlewares runs post-middlewares for a given request and context.
 // If any middleware returns false, the chain is stopped.
 func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, request T, handlerName string) T {
 	if middlewares, ok := middlewareBuilder.postMiddlewares[handlerName]; ok {
@@ -143,6 +151,7 @@ func isMiddlewareRegisteredForHandler(middlewares *[]middlewareStruct, middlewar
 // Handle executes the method associated with the reflectiveHandler,
 // passing in the context and input, and returns the result and any error.
 func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T, err error) {
+
 	// Check if the method is properly initialized
 	if !r.method.IsValid() {
 		return out, fmt.Errorf("reflectiveHandler: method not initialized")
@@ -173,6 +182,7 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T, er
 		}
 	}
 
+	// Handle potential errors returned by the reflective call
 	if len(reflectResults) > 1 {
 		errVal := reflectResults[1].Interface()
 		if errVal != nil {
