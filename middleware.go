@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	MiddlewareFunc func(ctx context.Context, command T) (updatedCommand T, chain bool)
+	MiddlewareFunc func(ctx context.Context, command any) (context.Context, any, bool)
 	// AddMiddlewareBuilder is a struct used for building middlewares
 	// for a specific command handler.
 	AddMiddlewareBuilder struct {
@@ -32,34 +32,34 @@ type (
 
 // executePreMiddlewares runs pre-middlewares for a given command and context.
 // If any middleware returns false, the chain is stopped.
-func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context.Context, command T, handlerName string) T {
+func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context.Context, request T, handlerName string) T {
 	if middlewares, ok := middlewareBuilder.preMiddlewares[handlerName]; ok {
 		for _, m := range middlewares {
 			var chain bool
-			command, chain = m.middlewareFunc(ctx, command)
+			ctx, request, chain = m.middlewareFunc(ctx, request)
 			if !chain {
 				// Middleware has stopped the chain.
-				return command
+				return request
 			}
 		}
 	}
-	return command
+	return request
 }
 
 // executePostMiddlewares runs post-middlewares for a given command and context.
 // If any middleware returns false, the chain is stopped.
-func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, command T, handlerName string) T {
+func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, request T, handlerName string) T {
 	if middlewares, ok := middlewareBuilder.postMiddlewares[handlerName]; ok {
 		for _, m := range middlewares {
 			var chain bool
-			command, chain = m.middlewareFunc(ctx, command)
+			ctx, request, chain = m.middlewareFunc(ctx, request)
 			if !chain {
 				// Middleware has stopped the chain.
-				return command
+				return request
 			}
 		}
 	}
-	return command
+	return request
 }
 
 // PreMiddleware adds a pre-middleware to the current handler.
@@ -131,9 +131,11 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T, er
 	// Check if the context and input are properly initialized
 	ctxVal := reflect.ValueOf(ctx)
 	inVal := reflect.ValueOf(in)
+
 	if !ctxVal.IsValid() {
 		return out, fmt.Errorf("reflectiveHandler: invalid or nil context")
 	}
+
 	if !inVal.IsValid() {
 		return out, fmt.Errorf("reflectiveHandler: invalid or nil request")
 	}

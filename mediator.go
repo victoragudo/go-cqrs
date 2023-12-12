@@ -104,16 +104,16 @@ func AddEventHandlers[TEvent T](handlers ...IEventHandler[TEvent]) error {
 // SendCommand executes a command by finding the appropriate handler.
 // It is a generic function parameterized by 'CommandResponse T', where 'T' is the expected response type for the command.
 func SendCommand[CommandResponse T](ctx context.Context, command any) (CommandResponse, error) {
-	return send[CommandResponse](ctx, command, commandType)
+	return send[CommandResponse](ctx, command)
 }
 
 // SendQuery executes a query by finding the appropriate handler.
 // It is a generic function parameterized by 'QueryResponse T', where 'T' is the expected response type.
 func SendQuery[QueryResponse T](ctx context.Context, query any) (QueryResponse, error) {
-	return send[QueryResponse](ctx, query, queryType)
+	return send[QueryResponse](ctx, query)
 }
 
-func send[Response T](ctx context.Context, in any, reqType requestType) (Response, error) {
+func send[Response T](ctx context.Context, in any) (Response, error) {
 	// Retrieve the type of the request as a string, removing the pointer symbol (*) if present.
 	typedIn := strings.TrimPrefix(reflect.TypeOf(in).String(), "*")
 
@@ -149,6 +149,7 @@ func send[Response T](ctx context.Context, in any, reqType requestType) (Respons
 	in = middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
 	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
 	in = middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
+
 	if response != nil {
 		return response.(Response), err
 	}
