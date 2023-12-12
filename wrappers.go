@@ -7,7 +7,7 @@ import (
 
 type (
 	// handlerWrapper is a generic struct that wraps ICommandHandler.
-	// It uses TIn and TOut as generic types.
+	// It uses T1 and T2 as generic types.
 	handlerWrapper[TRequest T, TResponse T] struct {
 		Handler IHandler[TRequest, TResponse]
 		Name    string
@@ -17,9 +17,9 @@ type (
 // Handle method for commandHandlerWrapper.
 // It takes a context and a commandRequest of generic type T,
 // and returns a response of type T and an error if any.
-func (handlerWrapper *handlerWrapper[TIn, TOut]) Handle(ctx context.Context, in T) (T, error) {
+func (handlerWrapper *handlerWrapper[T1, T2]) Handle(ctx context.Context, in T) (T, error) {
 	// Assert the type of commandRequest to CommandRequest.
-	typedIn, ok := in.(TIn)
+	typedIn, ok := in.(T1)
 	if !ok {
 		// Return an error if the assertion fails.
 		return nil, fmt.Errorf("incorrect request type: %T", in)
@@ -29,8 +29,8 @@ func (handlerWrapper *handlerWrapper[TIn, TOut]) Handle(ctx context.Context, in 
 }
 
 // newHandlerWrapper creates a new handlerWrapper instance.
-func newHandlerWrapper[TIn T, TOut T](handler IHandler[TIn, TOut], handlerName string) *handlerWrapper[TIn, TOut] {
-	return &handlerWrapper[TIn, TOut]{
+func newHandlerWrapper[T1 T, T2 T](handler IHandler[T1, T2], handlerName string) *handlerWrapper[T1, T2] {
+	return &handlerWrapper[T1, T2]{
 		Handler: handler,
 		Name:    handlerName,
 	}
