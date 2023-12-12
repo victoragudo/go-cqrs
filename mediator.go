@@ -28,33 +28,25 @@ func init() {
 	}
 }
 
-// AddQueryHandler registers a query handler.
-/*func AddQueryHandler[Query T, QueryResponse T](handler IHandler[Query, QueryResponse]) *AddMiddlewareBuilder {
-	// Determine the type name of the Query generic parameter, removing the pointer symbol if present.
-	typedQuery := strings.TrimPrefix(reflect.TypeOf(new(Query)).String(), "*")
-
-	// Determine the type name of the handler parameter, removing the pointer symbol if present.
-	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
-
-	// Store query handler for a specific query as a wrapper
-	storeMapValue(queryHandlers, typedQuery, newHandlerWrapper[Query, QueryResponse](handler, typedHandlerName), &queryMutex)
-
-	middlewareBuilder.currentHandlerName = typedHandlerName
-	middlewareBuilder.t = queryType
-	return &middlewareBuilder
+// AddQueryHandler registers a command handler.
+func AddQueryHandler[Query T, QueryResponse T](handler IHandler[Query, QueryResponse]) *AddMiddlewareBuilder {
+	return addRequest[Query, QueryResponse](handler)
 }
-*/
 
 // AddCommandHandler registers a command handler.
 func AddCommandHandler[Command T, CommandResponse T](handler IHandler[Command, CommandResponse]) *AddMiddlewareBuilder {
+	return addRequest[Command, CommandResponse](handler)
+}
+
+func addRequest[T1 T, T2 T](handler IHandler[T1, T2]) *AddMiddlewareBuilder {
 	// Determine the type name of the TCommand generic parameter, removing the pointer symbol if present.
-	typedCommand := strings.TrimPrefix(reflect.TypeOf(new(Command)).String(), "*")
+	typed := strings.TrimPrefix(reflect.TypeOf(new(T1)).String(), "*")
 
 	// Determine the type name of the handler parameter, removing the pointer symbol if present.
 	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
 
 	// Store command handler for a specific command as a wrapper
-	storeMapValue(handlers, typedCommand, newHandlerWrapper[Command, CommandResponse](handler, typedHandlerName), &handlerMutex)
+	storeMapValue(handlers, typed, newHandlerWrapper[T1, T2](handler, typedHandlerName), &handlerMutex)
 
 	middlewareBuilder.currentHandlerName = typedHandlerName
 	return &middlewareBuilder
