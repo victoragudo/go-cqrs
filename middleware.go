@@ -67,7 +67,6 @@ func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx contex
 			}
 		}
 	}
-	return
 }
 
 // PreMiddleware adds a pre-middleware to the current handler.
