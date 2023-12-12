@@ -135,7 +135,7 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T, er
 		return out, fmt.Errorf("reflectiveHandler: invalid or nil context")
 	}
 	if !inVal.IsValid() {
-		return out, fmt.Errorf("reflectiveHandler: invalid or nil input")
+		return out, fmt.Errorf("reflectiveHandler: invalid or nil request")
 	}
 
 	// Perform the reflective call
