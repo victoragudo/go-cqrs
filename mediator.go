@@ -146,23 +146,13 @@ func send[Response T](ctx context.Context, in any, reqType requestType) (Respons
 
 	handlerName := (handlerNameField.Interface()).(string)
 
-	middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
+	in = middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
 	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
-	middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
-
-	return response.(Response), err
-	/*if len(middlewares) > 0 {
-		handler := createReflectiveHandler[Response](handleMethod)
-		var h IHandler[T, T]
-		var response any
-		var err error
-		for _, middleware := range middlewares {
-			h, _ = middleware.MiddlewareFunc(in)
-			response, err = h.Handle(ctx, in)
-		}
+	in = middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
+	if response != nil {
 		return response.(Response), err
-	}*/
-
+	}
+	return zero, err
 }
 
 // PublishEvent publishes an event of a generic type T to all registered event handlers.

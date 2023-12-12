@@ -2,13 +2,14 @@ package gocqrs
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
 )
 
 type (
-	MiddlewareFunc func(ctx context.Context, command T) (chain bool)
+	MiddlewareFunc func(ctx context.Context, command T) (updatedCommand T, chain bool)
 	// AddMiddlewareBuilder is a struct used for building middlewares
 	// for a specific command handler.
 	AddMiddlewareBuilder struct {
@@ -29,36 +30,39 @@ type (
 	}
 )
 
-// executePreMiddlewares runs the pre-middlewares chain with the given command and context
-// It returns err if any error occurs.
-func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context.Context, command T, handlerName string) {
+// executePreMiddlewares runs pre-middlewares for a given command and context.
+// If any middleware returns false, the chain is stopped.
+func (middlewareBuilder *AddMiddlewareBuilder) executePreMiddlewares(ctx context.Context, command T, handlerName string) T {
 	if middlewares, ok := middlewareBuilder.preMiddlewares[handlerName]; ok {
 		for _, m := range middlewares {
-			chain := m.middlewareFunc(ctx, command)
+			var chain bool
+			command, chain = m.middlewareFunc(ctx, command)
 			if !chain {
 				// Middleware has stopped the chain.
-				return
+				return command
 			}
 		}
 	}
-	return
+	return command
 }
 
-// executePreMiddlewares runs the pre-middlewares chain with the given command and context
-// It returns err if any error occurs.
-func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, command T, handlerName string) {
+// executePostMiddlewares runs post-middlewares for a given command and context.
+// If any middleware returns false, the chain is stopped.
+func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx context.Context, command T, handlerName string) T {
 	if middlewares, ok := middlewareBuilder.postMiddlewares[handlerName]; ok {
 		for _, m := range middlewares {
-			chain := m.middlewareFunc(ctx, command)
+			var chain bool
+			command, chain = m.middlewareFunc(ctx, command)
 			if !chain {
 				// Middleware has stopped the chain.
-				return
+				return command
 			}
 		}
 	}
-	return
+	return command
 }
 
+// PreMiddleware adds a pre-middleware to the current handler.
 func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
 	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
 
@@ -82,6 +86,7 @@ func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *
 	return middlewareBuilder
 }
 
+// PostMiddleware adds a post-middleware to the current handler.
 func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
 	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
 
@@ -89,7 +94,7 @@ func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) 
 		middlewareName: typedMiddlewareName,
 		middlewareFunc: m,
 	}
-	middlewares, ok := middlewareBuilder.preMiddlewares[middlewareBuilder.currentHandlerName]
+	middlewares, ok := middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName]
 	if !ok {
 		middlewareBuilder.postMiddlewares[middlewareBuilder.currentHandlerName] = []middlewareStruct{
 			middleware,
@@ -118,13 +123,46 @@ func isMiddlewareRegisteredForHandler(middlewares *[]middlewareStruct, middlewar
 // Handle executes the method associated with the reflectiveHandler,
 // passing in the context and input, and returns the result and any error.
 func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T, err error) {
-	reflectResults := r.method.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(in)})
-	result := reflectResults[0].Interface().(T2)
-	if !reflectResults[1].IsNil() {
-		err = reflectResults[1].Interface().(error)
+	// Check if the method is properly initialized
+	if !r.method.IsValid() {
+		return out, fmt.Errorf("reflectiveHandler: method not initialized")
 	}
 
-	return result, err
+	// Check if the context and input are properly initialized
+	ctxVal := reflect.ValueOf(ctx)
+	inVal := reflect.ValueOf(in)
+	if !ctxVal.IsValid() {
+		return out, fmt.Errorf("reflectiveHandler: invalid or nil context")
+	}
+	if !inVal.IsValid() {
+		return out, fmt.Errorf("reflectiveHandler: invalid or nil input")
+	}
+
+	// Perform the reflective call
+	reflectResults := r.method.Call([]reflect.Value{ctxVal, inVal})
+
+	// Handle the results of the reflective call
+	if len(reflectResults) > 0 {
+		result, ok := reflectResults[0].Interface().(T2)
+		if ok {
+			out = result
+		} else {
+			return out, fmt.Errorf("reflectiveHandler: error in result conversion")
+		}
+	}
+
+	if len(reflectResults) > 1 {
+		errVal := reflectResults[1].Interface()
+		if errVal != nil {
+			var ok bool
+			err, ok = errVal.(error)
+			if !ok {
+				return out, fmt.Errorf("reflectiveHandler: error type assertion failed")
+			}
+		}
+	}
+
+	return out, err
 }
 
 // createReflectiveHandler creates a new reflectiveHandler with the provided method.
