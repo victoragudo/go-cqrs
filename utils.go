@@ -62,3 +62,12 @@ func checkTypeNameInEventHandlers(typeName string, eventHandlers []eventHandlers
 	}
 	return false
 }
+
+func loadOrStoreEventHandlers(m map[string][]eventHandlersType, typedEvent string) []eventHandlersType {
+	if handlers, exists := m[typedEvent]; exists {
+		return handlers
+	}
+
+	m[typedEvent] = make([]eventHandlersType, 0)
+	return m[typedEvent]
+}

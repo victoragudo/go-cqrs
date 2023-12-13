@@ -9,11 +9,13 @@ import (
 	"sync"
 )
 
+type handlerMap map[string]any
+
 // Declare global variables for storing handlers and their mutexes for synchronization.
 var (
-	handlers          map[string]any
+	handlers          handlerMap
 	handlerMutex      sync.RWMutex
-	eventHandlers     sync.Map
+	eventHandlers     map[string][]eventHandlersType
 	middlewareBuilder AddMiddlewareBuilder
 )
 
@@ -21,7 +23,7 @@ var (
 func init() {
 	handlers = make(map[string]any)
 	handlerMutex = sync.RWMutex{}
-	eventHandlers = sync.Map{}
+	eventHandlers = make(map[string][]eventHandlersType)
 	middlewareBuilder = AddMiddlewareBuilder{
 		preMiddlewares:  make(map[string][]middlewareStruct),
 		postMiddlewares: make(map[string][]middlewareStruct),
@@ -40,10 +42,10 @@ func AddCommandHandler[Command T, CommandResponse T](handler IHandler[Command, C
 
 func addRequest[T1 T, T2 T](handler IHandler[T1, T2]) *AddMiddlewareBuilder {
 	// Determine the type name of the TCommand generic parameter, removing the pointer symbol if present.
-	typed := strings.TrimPrefix(reflect.TypeOf(new(T1)).String(), "*")
+	typed := reflect.TypeOf(new(T1)).Elem().String()
 
 	// Determine the type name of the handler parameter, removing the pointer symbol if present.
-	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
+	typedHandlerName := reflect.TypeOf(handler).String()
 
 	// Store command handler for a specific command as a wrapper
 	storeMapValue(handlers, typed, newHandlerWrapper[T1, T2](handler, typedHandlerName), &handlerMutex)
@@ -59,11 +61,7 @@ func AddEventHandlers[TEvent T](handlers ...IEventHandler[TEvent]) error {
 	typedEvent := strings.TrimPrefix(reflect.TypeOf(new(TEvent)).String(), "*")
 
 	// Load the registered handlers for this event type, if any.
-	value, _ := eventHandlers.LoadOrStore(typedEvent, make([]eventHandlersType, 0, len(handlers)))
-	registeredHandlers, ok := value.([]eventHandlersType)
-	if !ok {
-		return fmt.Errorf("unable to cast registered handlers")
-	}
+	registeredHandlers := loadOrStoreEventHandlers(eventHandlers, typedEvent)
 
 	// Iterate through the provided handlers and add them to the registered handlers.
 	for _, handler := range handlers {
@@ -80,7 +78,7 @@ func AddEventHandlers[TEvent T](handlers ...IEventHandler[TEvent]) error {
 	}
 
 	// Update the eventHandlers map with the newly added handlers.
-	eventHandlers.Store(typedEvent, registeredHandlers)
+	eventHandlers[typedEvent] = registeredHandlers
 	return nil
 }
 
@@ -98,10 +96,17 @@ func SendQuery[QueryResponse T](ctx context.Context, query any) (QueryResponse, 
 
 func send[Response T](ctx context.Context, in any) (Response, error) {
 	// Retrieve the type of the request as a string, removing the pointer symbol (*) if present.
-	typedIn := strings.TrimPrefix(reflect.TypeOf(in).String(), "*")
+	typedIn := reflect.TypeOf(in).String()
 
-	// Create a zero value instance of Response.
-	zero := *new(Response)
+	var zero Response
+	tType := reflect.TypeOf(zero)
+
+	if tType.Kind() == reflect.Ptr {
+		zero = reflect.New(tType.Elem()).Interface().(Response)
+	} else {
+		zero = reflect.Zero(tType).Interface().(Response)
+	}
+
 	var value any
 	var ok bool
 
@@ -132,11 +137,7 @@ func send[Response T](ctx context.Context, in any) (Response, error) {
 	in = middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
 	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
 	middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
-
-	if response != nil {
-		return response.(Response), err
-	}
-	return zero, err
+	return response, err
 }
 
 // PublishEvent publishes an event of a generic type T to all registered event handlers.
@@ -162,8 +163,7 @@ func PublishEvent(ctx context.Context, event T) error {
 	typedEvent := strings.TrimPrefix(reflect.TypeOf(event).String(), "*")
 
 	// Attempt to load the registered event handlers for the specific event type.
-	registeredEventHandlers, ok := eventHandlers.Load(typedEvent)
-
+	registeredEventHandlers, ok := eventHandlers[typedEvent]
 	// If no event handlers are found for the type, return an error.
 	if !ok {
 		return fmt.Errorf("no handlers found for this event: %v", typedEvent)
@@ -173,7 +173,7 @@ func PublishEvent(ctx context.Context, event T) error {
 	handlerErrors := make([]error, 0)
 
 	// Iterate over the registered event handlers.
-	for _, eventHandler := range registeredEventHandlers.([]eventHandlersType) {
+	for _, eventHandler := range registeredEventHandlers {
 		// Call the event handler and pass the context and the event.
 		// If the handler returns an error, append it to the handlerErrors slice.
 		_, err := eventHandler.eventHandler.Handle(ctx, event)
