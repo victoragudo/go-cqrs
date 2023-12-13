@@ -63,7 +63,10 @@ func checkTypeNameInEventHandlers(typeName string, eventHandlers []eventHandlers
 	return false
 }
 
-func loadOrStoreEventHandlers(m map[string][]eventHandlersType, typedEvent string) []eventHandlersType {
+func loadOrStoreEventHandlers(m map[string][]eventHandlersType, typedEvent string, eventHandlerMutex *sync.RWMutex) []eventHandlersType {
+	eventHandlerMutex.Lock()
+	defer eventHandlerMutex.Unlock()
+
 	if handlers, exists := m[typedEvent]; exists {
 		return handlers
 	}

@@ -15,6 +15,7 @@ type handlerMap map[string]any
 var (
 	handlers          handlerMap
 	handlerMutex      sync.RWMutex
+	eventHandlerMutex sync.RWMutex
 	eventHandlers     map[string][]eventHandlersType
 	middlewareBuilder AddMiddlewareBuilder
 )
@@ -23,6 +24,7 @@ var (
 func init() {
 	handlers = make(map[string]any)
 	handlerMutex = sync.RWMutex{}
+	eventHandlerMutex = sync.RWMutex{}
 	eventHandlers = make(map[string][]eventHandlersType)
 	middlewareBuilder = AddMiddlewareBuilder{
 		preMiddlewares:  make(map[string][]middlewareStruct),
@@ -61,7 +63,7 @@ func AddEventHandlers[TEvent T](handlers ...IEventHandler[TEvent]) error {
 	typedEvent := strings.TrimPrefix(reflect.TypeOf(new(TEvent)).String(), "*")
 
 	// Load the registered handlers for this event type, if any.
-	registeredHandlers := loadOrStoreEventHandlers(eventHandlers, typedEvent)
+	registeredHandlers := loadOrStoreEventHandlers(eventHandlers, typedEvent, &eventHandlerMutex)
 
 	// Iterate through the provided handlers and add them to the registered handlers.
 	for _, handler := range handlers {
@@ -99,6 +101,9 @@ func send[Response T](ctx context.Context, in any) (Response, error) {
 	typedIn := reflect.TypeOf(in).String()
 
 	var zero Response
+	var value any
+	var ok bool
+
 	tType := reflect.TypeOf(zero)
 
 	if tType.Kind() == reflect.Ptr {
@@ -106,9 +111,6 @@ func send[Response T](ctx context.Context, in any) (Response, error) {
 	} else {
 		zero = reflect.Zero(tType).Interface().(Response)
 	}
-
-	var value any
-	var ok bool
 
 	value, ok = getMapValue(handlers, typedIn, &handlerMutex)
 
