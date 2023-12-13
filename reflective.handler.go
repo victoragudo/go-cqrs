@@ -6,14 +6,11 @@ import (
 	"reflect"
 )
 
-// isMiddlewareRegisteredForHandler checks if a middleware is already registered for a handler.
-func isMiddlewareRegisteredForHandler(middlewares *[]middlewareStruct, middlewareName string) bool {
-	for _, middleware := range *middlewares {
-		if middleware.middlewareName == middlewareName {
-			return true
-		}
-	}
-	return false
+// reflectiveHandler is a struct that allows the invocation of a method using reflection.
+// It is generic and can handle methods with different input (T1) and output (T2) types.
+// This structure is useful for creating flexible and dynamic handler functions.
+type reflectiveHandler[T1 T, T2 T] struct {
+	method reflect.Value // The method to be invoked, stored as a reflect.Value.
 }
 
 // Handle executes the method associated with the reflectiveHandler,

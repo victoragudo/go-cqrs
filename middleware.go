@@ -28,13 +28,6 @@ type (
 		middlewareName string         // Name of the middleware.
 		middlewareFunc MiddlewareFunc // The middleware function.
 	}
-
-	// reflectiveHandler is a struct that allows the invocation of a method using reflection.
-	// It is generic and can handle methods with different input (T1) and output (T2) types.
-	// This structure is useful for creating flexible and dynamic handler functions.
-	reflectiveHandler[T1 T, T2 T] struct {
-		method reflect.Value // The method to be invoked, stored as a reflect.Value.
-	}
 )
 
 // executePreMiddlewares runs pre-middlewares for a given request and context.
@@ -134,4 +127,14 @@ func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) 
 
 	// Return the middlewareBuilder to allow method chaining.
 	return middlewareBuilder
+}
+
+// isMiddlewareRegisteredForHandler checks if a middleware is already registered for a handler.
+func isMiddlewareRegisteredForHandler(middlewares *[]middlewareStruct, middlewareName string) bool {
+	for _, middleware := range *middlewares {
+		if middleware.middlewareName == middlewareName {
+			return true
+		}
+	}
+	return false
 }
