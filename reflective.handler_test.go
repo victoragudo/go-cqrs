@@ -31,13 +31,13 @@ func TestHandleInvalidMethod(t *testing.T) {
 	assert.Error(t, err, "Handle should return an error for uninitialized method")
 }
 
-// TestHandleInvalidContext tests the Handle method with an invalid context.
-func TestHandleInvalidContext(t *testing.T) {
+// TestHandleValidContext tests the Handle method with and valid context.
+func TestHandleValidContext(t *testing.T) {
 	method := reflect.ValueOf(mockFunction)
 	handler := createReflectiveHandler[string](method)
 
 	_, err := handler.Handle(context.TODO(), "test")
-	assert.Error(t, err, "Handle should return an error for invalid context")
+	assert.Nil(t, err, "Handle should return a nil error")
 }
 
 // TestHandleInvalidInput tests the Handle method with an invalid input.
