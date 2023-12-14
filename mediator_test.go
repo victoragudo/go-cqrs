@@ -93,8 +93,8 @@ func newMockEventHandler() *MockEventHandler {
 	return &MockEventHandler{}
 }
 
-func (m *MockEventHandler) Handle(ctx context.Context, event string) (T, error) {
-	return event, nil
+func (m *MockEventHandler) Handle(ctx context.Context, event string) error {
+	return nil
 }
 
 // TestPublishEvent tests the PublishEvent function.

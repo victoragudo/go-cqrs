@@ -36,9 +36,18 @@ func newHandlerWrapper[T1 T, T2 T](handler IHandler[T1, T2], handlerName string)
 	}
 }
 
-// v creates a new handlerWrapper instance.
-func newEventHandlerWrapper[TEvent T](handler IEventHandler[TEvent]) *handlerWrapper[TEvent, T] {
-	return &handlerWrapper[TEvent, T]{
-		Handler: handler,
+func newEventHandlerWrapper[T1 T](handler IEventHandler[T1], handlerName string) *handlerWrapper[T1, T] {
+	return &handlerWrapper[T1, T]{
+		Handler: &eventHandlerAdapter[T1]{eventHandler: handler},
+		Name:    handlerName,
 	}
+}
+
+type eventHandlerAdapter[TEvent T] struct {
+	eventHandler IEventHandler[TEvent]
+}
+
+func (adapter *eventHandlerAdapter[T1]) Handle(ctx context.Context, in T1) (out T, err error) {
+	err = adapter.eventHandler.Handle(ctx, in)
+	return nil, err
 }

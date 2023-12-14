@@ -60,19 +60,19 @@ func addRequest[T1 T, T2 T](handler IHandler[T1, T2]) *AddMiddlewareBuilder {
 // It uses generics to allow any event type and ensures type safety for handlers.
 func AddEventHandlers[TEvent T](handlers ...IEventHandler[TEvent]) error {
 	// Get the type name of the event, removing the pointer prefix if present.
-	typedEvent := strings.TrimPrefix(reflect.TypeOf(new(TEvent)).String(), "*")
+	typedEvent := reflect.TypeOf(new(TEvent)).Elem().String()
 
 	// Load the registered handlers for this event type, if any.
 	registeredHandlers := loadOrStoreEventHandlers(eventHandlers, typedEvent, &eventHandlerMutex)
 
 	// Iterate through the provided handlers and add them to the registered handlers.
 	for _, handler := range handlers {
-		handlerTypeName := strings.TrimPrefix(reflect.TypeOf(handler).String(), "*")
-		hWrapper := newEventHandlerWrapper[TEvent](handler)
+		typedHandlerName := reflect.TypeOf(handler).String()
+		hWrapper := newEventHandlerWrapper[TEvent](handler, typedHandlerName)
 
-		if !checkTypeNameInEventHandlers(handlerTypeName, registeredHandlers) {
+		if !checkTypeNameInEventHandlers(typedHandlerName, registeredHandlers) {
 			evtHandler := eventHandlersType{
-				typeName:     handlerTypeName,
+				typeName:     typedHandlerName,
 				eventHandler: hWrapper,
 			}
 			registeredHandlers = append(registeredHandlers, evtHandler)
@@ -97,7 +97,7 @@ func SendQuery[QueryResponse T](ctx context.Context, query any) (QueryResponse, 
 }
 
 func send[Response T](ctx context.Context, in any) (Response, error) {
-	// Retrieve the type of the request as a string, removing the pointer symbol (*) if present.
+	// Retrieve the type of the request as a string
 	typedIn := reflect.TypeOf(in).String()
 
 	var zero Response
