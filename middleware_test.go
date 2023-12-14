@@ -2,152 +2,117 @@ package gocqrs
 
 import (
 	"context"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestAddMiddlewareBuilder_PostMiddleware(t *testing.T) {
-	type fields struct {
-		currentHandlerName string
-		preMiddlewares     map[string][]middlewareStruct
-		postMiddlewares    map[string][]middlewareStruct
-	}
-	type args struct {
-		m MiddlewareFunc
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *AddMiddlewareBuilder
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			middlewareBuilder := &AddMiddlewareBuilder{
-				currentHandlerName: tt.fields.currentHandlerName,
-				preMiddlewares:     tt.fields.preMiddlewares,
-				postMiddlewares:    tt.fields.postMiddlewares,
-			}
-			if got := middlewareBuilder.PostMiddleware(tt.args.m); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PostMiddleware() = %v, want %v", got, tt.want)
-			}
-		})
+// MockmiddlewareFunc creates a middleware function for testing.
+func MockmiddlewareFunc(continueChain bool) MiddlewareFunc {
+	return func(ctx context.Context, request any) (context.Context, any, bool) {
+		return ctx, request, continueChain
 	}
 }
 
-func TestAddMiddlewareBuilder_PreMiddleware(t *testing.T) {
-	type fields struct {
-		currentHandlerName string
-		preMiddlewares     map[string][]middlewareStruct
-		postMiddlewares    map[string][]middlewareStruct
+// TestPreMiddleware tests the addition of pre-middlewares.
+func TestPreMiddleware(t *testing.T) {
+	builder := AddMiddlewareBuilder{
+		currentHandlerName: "testHandler",
+		preMiddlewares:     make(map[string][]middlewareStruct),
 	}
-	type args struct {
-		m MiddlewareFunc
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *AddMiddlewareBuilder
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			middlewareBuilder := &AddMiddlewareBuilder{
-				currentHandlerName: tt.fields.currentHandlerName,
-				preMiddlewares:     tt.fields.preMiddlewares,
-				postMiddlewares:    tt.fields.postMiddlewares,
-			}
-			if got := middlewareBuilder.PreMiddleware(tt.args.m); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PreMiddleware() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+
+	middlewareFunc := MockmiddlewareFunc(true)
+	builder.PreMiddleware(middlewareFunc)
+
+	assert.Len(t, builder.preMiddlewares["testHandler"], 1, "preMiddlewares should contain one middleware for testHandler")
 }
 
-func TestAddMiddlewareBuilder_executePostMiddlewares(t *testing.T) {
-	type fields struct {
-		currentHandlerName string
-		preMiddlewares     map[string][]middlewareStruct
-		postMiddlewares    map[string][]middlewareStruct
+// TestPostMiddleware tests the addition of post-middlewares.
+func TestPostMiddleware(t *testing.T) {
+	builder := AddMiddlewareBuilder{
+		currentHandlerName: "testHandler",
+		postMiddlewares:    make(map[string][]middlewareStruct),
 	}
-	type args struct {
-		ctx         context.Context
-		request     T
-		handlerName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			middlewareBuilder := &AddMiddlewareBuilder{
-				currentHandlerName: tt.fields.currentHandlerName,
-				preMiddlewares:     tt.fields.preMiddlewares,
-				postMiddlewares:    tt.fields.postMiddlewares,
-			}
-			middlewareBuilder.executePostMiddlewares(tt.args.ctx, tt.args.request, tt.args.handlerName)
-		})
-	}
+
+	middlewareFunc := MockmiddlewareFunc(true)
+	builder.PostMiddleware(middlewareFunc)
+
+	assert.Len(t, builder.postMiddlewares["testHandler"], 1, "postMiddlewares should contain one middleware for testHandler")
 }
 
-func TestAddMiddlewareBuilder_executePreMiddlewares(t *testing.T) {
-	type fields struct {
-		currentHandlerName string
-		preMiddlewares     map[string][]middlewareStruct
-		postMiddlewares    map[string][]middlewareStruct
+// TestExecutepreMiddlewares tests the execution of pre-middlewares.
+func TestExecutepreMiddlewares(t *testing.T) {
+	builder := AddMiddlewareBuilder{
+		currentHandlerName: "testHandler",
+		preMiddlewares:     make(map[string][]middlewareStruct),
 	}
-	type args struct {
-		ctx         context.Context
-		request     T
-		handlerName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   T
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			middlewareBuilder := &AddMiddlewareBuilder{
-				currentHandlerName: tt.fields.currentHandlerName,
-				preMiddlewares:     tt.fields.preMiddlewares,
-				postMiddlewares:    tt.fields.postMiddlewares,
-			}
-			if got := middlewareBuilder.executePreMiddlewares(tt.args.ctx, tt.args.request, tt.args.handlerName); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("executePreMiddlewares() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+
+	// Add middlewares
+	builder.PreMiddleware(MockmiddlewareFunc(true))
+	builder.PreMiddleware(MockmiddlewareFunc(false)) // This should stop the chain
+
+	request := "original"
+	modifiedRequest := builder.executePreMiddlewares(context.Background(), request, "testHandler")
+
+	assert.Equal(t, request, modifiedRequest, "Request should not be modified as the chain is stopped by the second middleware")
 }
 
-func Test_isMiddlewareRegisteredForHandler(t *testing.T) {
-	type args struct {
-		middlewares    *[]middlewareStruct
-		middlewareName string
+// TestExecutepostMiddlewares tests the execution of post-middlewares.
+func TestExecutepostMiddlewares(t *testing.T) {
+	builder := AddMiddlewareBuilder{
+		currentHandlerName: "testHandler",
+		postMiddlewares:    make(map[string][]middlewareStruct),
 	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		// TODO: Add test cases.
+
+	// Add middlewares
+	builder.PostMiddleware(MockmiddlewareFunc(true))
+	builder.PostMiddleware(MockmiddlewareFunc(false)) // This should stop the chain
+
+	request := "original"
+	builder.executePostMiddlewares(context.Background(), request, "testHandler")
+
+	// No assertion needed as we are testing the flow, not the output
+}
+
+// TestIsMiddlewareRegisteredForHandler tests if a middleware is correctly identified as registered.
+func TestIsMiddlewareRegisteredForHandler(t *testing.T) {
+	middlewares := []middlewareStruct{
+		{middlewareName: "Middleware1", middlewareFunc: MockmiddlewareFunc(true)},
+		{middlewareName: "Middleware2", middlewareFunc: MockmiddlewareFunc(true)},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isMiddlewareRegisteredForHandler(tt.args.middlewares, tt.args.middlewareName); got != tt.want {
-				t.Errorf("isMiddlewareRegisteredForHandler() = %v, want %v", got, tt.want)
-			}
-		})
+
+	assert.True(t, isMiddlewareRegisteredForHandler(&middlewares, "Middleware1"), "Middleware1 should be registered")
+	assert.False(t, isMiddlewareRegisteredForHandler(&middlewares, "Middleware3"), "Middleware3 should not be registered")
+}
+
+// TestMultipleMiddlewareRegistration tests if adding the same middleware multiple times is handled correctly.
+func TestMultipleMiddlewareRegistration(t *testing.T) {
+	builder := AddMiddlewareBuilder{
+		currentHandlerName: "testHandler",
+		preMiddlewares:     make(map[string][]middlewareStruct),
 	}
+
+	middlewareFunc := MockmiddlewareFunc(true)
+	builder.PreMiddleware(middlewareFunc)
+	builder.PreMiddleware(middlewareFunc) // Add the same middleware again
+
+	assert.Len(t, builder.preMiddlewares["testHandler"], 1, "Middleware should only be registered once")
+}
+
+// TestMiddlewareFunctionality tests the actual functionality of the middleware.
+func TestMiddlewareFunctionality(t *testing.T) {
+	builder := AddMiddlewareBuilder{
+		currentHandlerName: "testHandler",
+		preMiddlewares:     make(map[string][]middlewareStruct),
+	}
+
+	// Middleware that modifies the request
+	modifyingMiddleware := func(ctx context.Context, request any) (context.Context, any, bool) {
+		return ctx, "modified", true
+	}
+
+	builder.PreMiddleware(modifyingMiddleware)
+
+	modifiedRequest := builder.executePreMiddlewares(context.Background(), "original", "testHandler")
+	assert.Equal(t, "modified", modifiedRequest, "Request should be modified by the middleware")
 }
