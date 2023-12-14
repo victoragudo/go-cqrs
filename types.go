@@ -25,13 +25,4 @@ type (
 	IEventHandler[TEvent T] interface {
 		Handle(ctx context.Context, event TEvent) error
 	}
-	// IHandlerFunc is a function type that takes a context and a generic type T as input
-	// and returns a generic type T and an error. It can be used as a handler.
-	IHandlerFunc func(ctx context.Context, in T) (T, error)
 )
-
-// Handle allows IHandlerFunc to satisfy the IHandler interface.
-// It simply calls the function itself with the provided context and command.
-func (handlerFunc IHandlerFunc) Handle(ctx context.Context, command T) (T, error) {
-	return handlerFunc(ctx, command)
-}

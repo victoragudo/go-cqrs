@@ -9,8 +9,10 @@ import (
 
 type (
 	// MiddlewareFunc defines a function type used for middleware.
-	// It takes a context and a request (of any type), and returns a potentially modified context,
-	// a result (of any type), and a boolean to indicate whether to proceed with further processing.
+	// It receives a context and a request (of any type). The function returns three values:
+	// 1. A potentially modified context, which is the chained context after processing.
+	// 2. A result (of any type), which is the chained request parameter after processing.
+	// 3. A boolean indicating whether to continue with the chain of middlewares or not.
 	MiddlewareFunc func(ctx context.Context, request any) (context.Context, any, bool)
 
 	// AddMiddlewareBuilder is a struct used for building middleware chains
