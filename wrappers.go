@@ -12,10 +12,13 @@ type (
 		Handler IHandler[TRequest, TResponse]
 		Name    string
 	}
+	eventHandlerAdapter[TEvent T] struct {
+		eventHandler IEventHandler[TEvent]
+	}
 )
 
 // Handle method for commandHandlerWrapper.
-// It takes a context and a commandRequest of generic type T,
+// It takes a context and input parameter of generic type T,
 // and returns a response of type T and an error if any.
 func (handlerWrapper *handlerWrapper[T1, T2]) Handle(ctx context.Context, in T) (T, error) {
 	// Assert the type of commandRequest to CommandRequest.
@@ -41,10 +44,6 @@ func newEventHandlerWrapper[T1 T](handler IEventHandler[T1], handlerName string)
 		Handler: &eventHandlerAdapter[T1]{eventHandler: handler},
 		Name:    handlerName,
 	}
-}
-
-type eventHandlerAdapter[TEvent T] struct {
-	eventHandler IEventHandler[TEvent]
 }
 
 func (adapter *eventHandlerAdapter[T1]) Handle(ctx context.Context, in T1) (out T, err error) {
