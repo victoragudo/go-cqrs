@@ -23,8 +23,8 @@ func TestGetField(t *testing.T) {
 	assert.False(t, notFound, "Non-existent field should not be found")
 }
 
-// TestgetMethodByName tests the getMethodByName function.
-func TestgetMethodByName(t *testing.T) {
+// TestGetMethodByName tests the getMethodByName function.
+func TestGetMethodByName(t *testing.T) {
 	obj := reflect.ValueOf(&sync.Mutex{})
 	method, found := getMethodByName(obj, "Lock")
 	assert.True(t, found, "Method should be found")
