@@ -36,7 +36,7 @@ func TestHandleInvalidContext(t *testing.T) {
 	method := reflect.ValueOf(mockFunction)
 	handler := createReflectiveHandler[string](method)
 
-	_, err := handler.Handle(nil, "test")
+	_, err := handler.Handle(context.TODO(), "test")
 	assert.Error(t, err, "Handle should return an error for invalid context")
 }
 
