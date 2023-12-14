@@ -97,6 +97,32 @@ func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *
 	return middlewareBuilder
 }
 
+// PreMiddlewares adds a list of middleware functions to be executed before a primary action.
+// The function is a method of the AddMiddlewareBuilder type.
+func (middlewareBuilder *AddMiddlewareBuilder) PreMiddlewares(middlewares ...MiddlewareFunc) *AddMiddlewareBuilder {
+	// Iterate over the provided list of middleware functions.
+	for _, middleware := range middlewares {
+		// For each middleware, add it to the list of pre-execution middlewares
+		// using the PreMiddleware method of middlewareBuilder.
+		middlewareBuilder.PreMiddleware(middleware)
+	}
+	// Return the middlewareBuilder to allow for method chaining.
+	return middlewareBuilder
+}
+
+// PostMiddlewares adds a list of middleware functions to be executed after a primary action.
+// This function is also a method of the AddMiddlewareBuilder type.
+func (middlewareBuilder *AddMiddlewareBuilder) PostMiddlewares(middlewares ...MiddlewareFunc) *AddMiddlewareBuilder {
+	// Iterate over the provided list of middleware functions.
+	for _, middleware := range middlewares {
+		// For each middleware, add it to the list of post-execution middlewares
+		// using the PostMiddleware method of middlewareBuilder.
+		middlewareBuilder.PostMiddleware(middleware)
+	}
+	// Return the middlewareBuilder to allow for method chaining.
+	return middlewareBuilder
+}
+
 // PostMiddleware adds a post-middleware to the current handler.
 func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
 
