@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// MockmiddlewareFunc creates a middleware function for testing.
-func MockmiddlewareFunc(continueChain bool) MiddlewareFunc {
+// MockMiddlewareFunc creates a middleware function for testing.
+func MockMiddlewareFunc(continueChain bool) MiddlewareFunc {
 	return func(ctx context.Context, request any) (context.Context, any, bool) {
 		return ctx, request, continueChain
 	}
@@ -21,7 +21,7 @@ func TestPreMiddleware(t *testing.T) {
 		preMiddlewares:     make(map[string][]middlewareStruct),
 	}
 
-	middlewareFunc := MockmiddlewareFunc(true)
+	middlewareFunc := MockMiddlewareFunc(true)
 	builder.PreMiddleware(middlewareFunc)
 
 	assert.Len(t, builder.preMiddlewares["testHandler"], 1, "preMiddlewares should contain one middleware for testHandler")
@@ -34,7 +34,7 @@ func TestPostMiddleware(t *testing.T) {
 		postMiddlewares:    make(map[string][]middlewareStruct),
 	}
 
-	middlewareFunc := MockmiddlewareFunc(true)
+	middlewareFunc := MockMiddlewareFunc(true)
 	builder.PostMiddleware(middlewareFunc)
 
 	assert.Len(t, builder.postMiddlewares["testHandler"], 1, "postMiddlewares should contain one middleware for testHandler")
@@ -48,8 +48,8 @@ func TestExecutepreMiddlewares(t *testing.T) {
 	}
 
 	// Add middlewares
-	builder.PreMiddleware(MockmiddlewareFunc(true))
-	builder.PreMiddleware(MockmiddlewareFunc(false)) // This should stop the chain
+	builder.PreMiddleware(MockMiddlewareFunc(true))
+	builder.PreMiddleware(MockMiddlewareFunc(false)) // This should stop the chain
 
 	request := "original"
 	modifiedRequest := builder.executePreMiddlewares(context.Background(), request, "testHandler")
@@ -65,8 +65,8 @@ func TestExecutepostMiddlewares(t *testing.T) {
 	}
 
 	// Add middlewares
-	builder.PostMiddleware(MockmiddlewareFunc(true))
-	builder.PostMiddleware(MockmiddlewareFunc(false)) // This should stop the chain
+	builder.PostMiddleware(MockMiddlewareFunc(true))
+	builder.PostMiddleware(MockMiddlewareFunc(false)) // This should stop the chain
 
 	request := "original"
 	builder.executePostMiddlewares(context.Background(), request, "testHandler")
@@ -77,8 +77,8 @@ func TestExecutepostMiddlewares(t *testing.T) {
 // TestIsMiddlewareRegisteredForHandler tests if a middleware is correctly identified as registered.
 func TestIsMiddlewareRegisteredForHandler(t *testing.T) {
 	middlewares := []middlewareStruct{
-		{middlewareName: "Middleware1", middlewareFunc: MockmiddlewareFunc(true)},
-		{middlewareName: "Middleware2", middlewareFunc: MockmiddlewareFunc(true)},
+		{middlewareName: "Middleware1", middlewareFunc: MockMiddlewareFunc(true)},
+		{middlewareName: "Middleware2", middlewareFunc: MockMiddlewareFunc(true)},
 	}
 
 	assert.True(t, isMiddlewareRegisteredForHandler(&middlewares, "Middleware1"), "Middleware1 should be registered")
@@ -92,7 +92,7 @@ func TestMultipleMiddlewareRegistration(t *testing.T) {
 		preMiddlewares:     make(map[string][]middlewareStruct),
 	}
 
-	middlewareFunc := MockmiddlewareFunc(true)
+	middlewareFunc := MockMiddlewareFunc(true)
 	builder.PreMiddleware(middlewareFunc)
 	builder.PreMiddleware(middlewareFunc) // Add the same middleware again
 
