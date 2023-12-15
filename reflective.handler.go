@@ -26,12 +26,8 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T2, e
 	ctxVal := reflect.ValueOf(ctx)
 	inVal := reflect.ValueOf(in)
 
-	if !ctxVal.IsValid() {
-		return out, fmt.Errorf("reflectiveHandler: invalid or nil context")
-	}
-
-	if !inVal.IsValid() {
-		return out, fmt.Errorf("reflectiveHandler: invalid or nil request")
+	if !ctxVal.IsValid() || !inVal.IsValid() {
+		return out, err
 	}
 
 	// Perform the reflective call
@@ -42,8 +38,6 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T2, e
 		result, ok := reflectResults[0].Interface().(T2)
 		if ok {
 			out = result
-		} else {
-			return out, fmt.Errorf("reflectiveHandler: error in result conversion")
 		}
 	}
 
@@ -52,9 +46,9 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T2, e
 		errVal := reflectResults[1].Interface()
 		if errVal != nil {
 			var ok bool
-			err, ok = errVal.(error)
-			if !ok {
-				return out, fmt.Errorf("reflectiveHandler: error type assertion failed")
+			retErr, ok := errVal.(error)
+			if ok {
+				err = retErr
 			}
 		}
 	}
