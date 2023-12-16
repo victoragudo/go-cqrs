@@ -1,28 +1,28 @@
 package gocqrs
 
-import "context"
+import (
+	"context"
+)
 
-// Define interface types for command, query, and event handlers with generic types.
 type (
+	// T is a generic type alias for any type.
 	T any
-
+	// eventHandlersType is a struct that holds the type name of an event
+	// and its corresponding event handler.
 	eventHandlersType struct {
 		typeName     string
-		eventHandler IEventHandler[T]
+		eventHandler IHandler[T, T]
 	}
-
-	// ICommandHandler defines the interface for a command handler with a request and response of generic type.
-	ICommandHandler[TCommand T, TResponse T] interface {
-		Handle(ctx context.Context, command TCommand) (response TResponse, err error)
+	// IHandler is an interface representing a generic handler
+	// with input and output of generic types T1 and T2.
+	// It requires implementing a Handle method.
+	IHandler[T1 T, T2 T] interface {
+		Handle(ctx context.Context, in T1) (out T2, err error)
 	}
-
-	// IQueryHandler defines the interface for a query handler with a request and response of generic type.
-	IQueryHandler[TQuery T, TResponse T] interface {
-		Handle(ctx context.Context, query TQuery) (response TResponse, err error)
-	}
-
-	// IEventHandler defines the interface for an event handler with an event of generic type.
+	// IEventHandler is an interface for event handlers
+	// that handle events of a generic type TEvent.
+	// It defines a Handle method for processing events.
 	IEventHandler[TEvent T] interface {
-		Handle(ctx context.Context, event TEvent) (err error)
+		Handle(ctx context.Context, event TEvent) error
 	}
 )

@@ -3,6 +3,7 @@ package gocqrs
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -37,7 +38,9 @@ func TestCommandHandlerWrapper_Handle(t *testing.T) {
 	ctx := context.Background()
 	command := "test command"
 	mockHandler := &MockCommandHandler{}
-	wrapper := newCommandHandlerWrapper[string, string](mockHandler)
+	// Determine the type name of the handler parameter, removing the pointer symbol if present.
+	typedHandlerName := strings.TrimPrefix(reflect.TypeOf(mockHandler).String(), "*")
+	wrapper := newHandlerWrapper[string, string](mockHandler, typedHandlerName)
 
 	// Success case
 	got, err := wrapper.Handle(ctx, command)
@@ -55,13 +58,13 @@ func TestAddCommandHandler(t *testing.T) {
 	AddCommandHandler[string, string](mockHandler)
 
 	// Verify if the handler was added correctly
-	handler, ok := commandHandlers.Load("string")
+	handler, ok := handlers["string"]
 	if !ok {
 		t.Fatal("Handler not found in commandHandlers")
 	}
 
 	// Assert that it's the correct type
-	_, ok = handler.(*commandHandlerWrapper[string, string])
+	_, ok = handler.(*handlerWrapper[string, string])
 	if !ok {
 		t.Errorf("Handler is not of type *commandHandlerWrapper[string, string]")
 	}
