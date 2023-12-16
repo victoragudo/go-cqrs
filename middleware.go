@@ -27,8 +27,8 @@ type (
 	// middlewareStruct represents a middleware with its name and the function itself.
 	// It is used to store individual middleware functions along with their names.
 	middlewareStruct struct {
-		middlewareName string         // Name of the middleware.
-		middlewareFunc MiddlewareFunc // The middleware function.
+		middlewareName string                                                              // Name of the middleware.
+		middlewareFunc func(ctx context.Context, request any) (context.Context, any, bool) // The middleware function.
 	}
 )
 
@@ -64,15 +64,20 @@ func (middlewareBuilder *AddMiddlewareBuilder) executePostMiddlewares(ctx contex
 }
 
 // PreMiddleware adds a pre-middleware to the current handler.
-func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
+// middlewareFunc parameter defines a function type used for middleware.
+// It receives a context and a request (of any type). The function returns three values:
+// 1. A potentially modified context, which is the chained context after processing.
+// 2. A result (of any type), which is the chained request parameter after processing.
+// 3. A boolean indicating whether to continue with the chain of middlewares or not.
+func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(middlewareFunc func(ctx context.Context, request any) (context.Context, any, bool)) *AddMiddlewareBuilder {
 
 	// Extract the name of the middleware function using reflection and strip the pointer indicator.
-	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
+	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(middlewareFunc).Pointer()).Name(), "*")
 
 	// Create a middlewareStruct instance with the middleware name and function.
 	middleware := middlewareStruct{
 		middlewareName: typedMiddlewareName,
-		middlewareFunc: m,
+		middlewareFunc: middlewareFunc,
 	}
 
 	// Retrieve the slice of pre-middlewares associated with the current handler from the middlewareBuilder.
@@ -99,9 +104,9 @@ func (middlewareBuilder *AddMiddlewareBuilder) PreMiddleware(m MiddlewareFunc) *
 
 // PreMiddlewares adds a list of middleware functions to be executed before a primary action.
 // The function is a method of the AddMiddlewareBuilder type.
-func (middlewareBuilder *AddMiddlewareBuilder) PreMiddlewares(middlewares ...MiddlewareFunc) *AddMiddlewareBuilder {
+func (middlewareBuilder *AddMiddlewareBuilder) PreMiddlewares(middlewaresFunc ...func(ctx context.Context, request any) (context.Context, any, bool)) *AddMiddlewareBuilder {
 	// Iterate over the provided list of middleware functions.
-	for _, middleware := range middlewares {
+	for _, middleware := range middlewaresFunc {
 		// For each middleware, add it to the list of pre-execution middlewares
 		// using the PreMiddleware method of middlewareBuilder.
 		middlewareBuilder.PreMiddleware(middleware)
@@ -112,9 +117,9 @@ func (middlewareBuilder *AddMiddlewareBuilder) PreMiddlewares(middlewares ...Mid
 
 // PostMiddlewares adds a list of middleware functions to be executed after a primary action.
 // This function is also a method of the AddMiddlewareBuilder type.
-func (middlewareBuilder *AddMiddlewareBuilder) PostMiddlewares(middlewares ...MiddlewareFunc) *AddMiddlewareBuilder {
+func (middlewareBuilder *AddMiddlewareBuilder) PostMiddlewares(middlewaresFunc ...func(ctx context.Context, request any) (context.Context, any, bool)) *AddMiddlewareBuilder {
 	// Iterate over the provided list of middleware functions.
-	for _, middleware := range middlewares {
+	for _, middleware := range middlewaresFunc {
 		// For each middleware, add it to the list of post-execution middlewares
 		// using the PostMiddleware method of middlewareBuilder.
 		middlewareBuilder.PostMiddleware(middleware)
@@ -124,15 +129,20 @@ func (middlewareBuilder *AddMiddlewareBuilder) PostMiddlewares(middlewares ...Mi
 }
 
 // PostMiddleware adds a post-middleware to the current handler.
-func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(m MiddlewareFunc) *AddMiddlewareBuilder {
+// middlewareFunc parameter defines a function type used for middleware.
+// It receives a context and a request (of any type). The function returns three values:
+// 1. A potentially modified context, which is the chained context after processing.
+// 2. A result (of any type), which is the chained request parameter after processing.
+// 3. A boolean indicating whether to continue with the chain of middlewares or not.
+func (middlewareBuilder *AddMiddlewareBuilder) PostMiddleware(middlewareFunc func(ctx context.Context, request any) (context.Context, any, bool)) *AddMiddlewareBuilder {
 
 	// Extract the name of the middleware function using reflection and strip the pointer indicator.
-	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(m).Pointer()).Name(), "*")
+	typedMiddlewareName := strings.TrimPrefix(runtime.FuncForPC(reflect.ValueOf(middlewareFunc).Pointer()).Name(), "*")
 
 	// Create a middlewareStruct instance with the middleware name and function.
 	middleware := middlewareStruct{
 		middlewareName: typedMiddlewareName,
-		middlewareFunc: m,
+		middlewareFunc: middlewareFunc,
 	}
 
 	// Retrieve the slice of post-middlewares associated with the current handler from the middlewareBuilder.

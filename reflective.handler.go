@@ -2,7 +2,6 @@ package gocqrs
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 )
 
@@ -19,7 +18,7 @@ func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T2, e
 
 	// Check if the method is properly initialized
 	if !r.method.IsValid() {
-		return out, fmt.Errorf("reflectiveHandler: method not initialized")
+		panic("Handle method not initialized")
 	}
 
 	// Check if the context and input are properly initialized

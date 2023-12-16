@@ -8,7 +8,7 @@ import (
 )
 
 // MockMiddlewareFunc creates a middleware function for testing.
-func MockMiddlewareFunc(continueChain bool) MiddlewareFunc {
+func MockMiddlewareFunc(continueChain bool) func(ctx context.Context, request any) (context.Context, any, bool) {
 	return func(ctx context.Context, request any) (context.Context, any, bool) {
 		return ctx, request, continueChain
 	}
