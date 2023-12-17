@@ -100,17 +100,8 @@ func send[Response T](ctx context.Context, in any) (Response, error) {
 	// Retrieve the type of the request as a string
 	typedIn := reflect.TypeOf(in).String()
 
-	var zero Response
 	var value any
 	var ok bool
-
-	responseType := reflect.TypeOf(zero)
-
-	if responseType.Kind() == reflect.Ptr {
-		zero = reflect.New(responseType.Elem()).Interface().(Response)
-	} else {
-		zero = reflect.Zero(responseType).Interface().(Response)
-	}
 
 	value, ok = getMapValue(handlers, typedIn, &handlerMutex)
 
