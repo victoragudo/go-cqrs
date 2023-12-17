@@ -104,61 +104,51 @@ func send[Response T](ctx context.Context, in any) (Response, error) {
 	var value any
 	var ok bool
 
-	tType := reflect.TypeOf(zero)
+	responseType := reflect.TypeOf(zero)
 
-	if tType.Kind() == reflect.Ptr {
-		zero = reflect.New(tType.Elem()).Interface().(Response)
+	if responseType.Kind() == reflect.Ptr {
+		zero = reflect.New(responseType.Elem()).Interface().(Response)
 	} else {
-		zero = reflect.Zero(tType).Interface().(Response)
+		zero = reflect.Zero(responseType).Interface().(Response)
 	}
 
 	value, ok = getMapValue(handlers, typedIn, &handlerMutex)
 
-	// If no handler is found for the command, return the zero value and an error.
+	// If no handler is found for the command or query, throws a panic
 	if !ok {
-		return zero, fmt.Errorf("handler not found for this request: %v", typedIn)
+		panic(fmt.Sprintf("no handler found for: %v", typedIn))
 	}
 
 	handlerField, ok := getField(value, "Handler")
 	if !ok {
-		return zero, fmt.Errorf("[Handler] field found: %T", value)
+		panic(fmt.Sprintf("no Handler field found for: %v", value))
 	}
 
 	handleMethod, ok := getMethodByName(handlerField, "Handle")
 	if !ok {
-		return zero, fmt.Errorf("[Handle] method not found for handler: %T", handlerField)
+		panic(fmt.Sprintf("no Handle method found for: %v", handlerField))
 	}
 
 	handlerNameField, ok := getField(value, "Name")
 	if !ok {
-		return zero, fmt.Errorf("[Name] field not found found: %T", value)
+		panic(fmt.Sprintf("no Handler name field found for: %v", value))
 	}
 
 	handlerName := (handlerNameField.Interface()).(string)
 
-	in = middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)
-	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in)
-	middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)
+	in = middlewareBuilder.executePreMiddlewares(ctx, in, handlerName)               // execute pre middlewares
+	response, err := createReflectiveHandler[Response](handleMethod).Handle(ctx, in) // execute Handle method
+	middlewareBuilder.executePostMiddlewares(ctx, in, handlerName)                   // execute post middlewares
 	return response, err
 }
 
 // PublishEvent publishes an event of a generic type T to all registered event handlers.
-// This function performs the following steps:
-//  1. It determines the type of the provided event using reflection and removes any pointer
-//     indicator from the type name (if present).
-//  2. It then attempts to retrieve the list of event handlers registered for this event type.
-//  3. If no handlers are registered for this event type, it returns an error indicating this.
-//  4. If handlers are found, the function iterates over each handler and calls its Handle
-//     method, passing the current context and the event.
-//  5. Any errors returned by the handlers are collected. If one or more handlers return errors,
-//     these are combined into a single error that is then returned.
-//  6. If all handlers process the event without error, the function returns nil, indicating
-//     successful processing of the event.
-//
-// The function is designed to work within an event-driven architecture where different
-// types of events can be handled by different handlers. This allows for a decoupled and
-// scalable system where new event types and handlers can be added without modifying the
-// core event publishing logic.
+// It performs the following steps:
+// 1. Identifies the event type and retrieves the corresponding event handlers.
+// 2. If no handlers are found for the event type, it returns an error.
+// 3. For each found handler, it calls the Handle method, passing the current context and event.
+// 4. Collects and returns any errors from the handlers. If multiple errors occur, they are combined into a single error.
+// This function is crucial for an event-driven architecture, allowing for flexible and scalable handling of various event types.
 func PublishEvent(ctx context.Context, event T) error {
 	// Obtain the type of the event as a string using reflection.
 	// This strips the "*" prefix, which indicates a pointer type, to get the base type name.
@@ -168,7 +158,7 @@ func PublishEvent(ctx context.Context, event T) error {
 	registeredEventHandlers, ok := eventHandlers[typedEvent]
 	// If no event handlers are found for the type, return an error.
 	if !ok {
-		return fmt.Errorf("no handlers found for this event: %v", typedEvent)
+		panic(fmt.Sprintf("no handler found for: %v", typedEvent))
 	}
 
 	// Initialize a slice to collect errors from the event handlers.
