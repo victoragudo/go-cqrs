@@ -2,6 +2,7 @@ package gocqrs
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
 	"testing"
@@ -82,8 +83,9 @@ func TestSendCommand(t *testing.T) {
 	assertEqual(t, "handled: "+command, response)
 
 	// Error case: no registered handler
-	_, err = SendCommand[int](ctx, 123)
-	assertNotNilError(t, err)
+	assert.Panics(t, func() {
+		_, err = SendCommand[int](ctx, 123)
+	})
 }
 
 // MockEventHandler for events
@@ -109,8 +111,9 @@ func TestPublishEvent(t *testing.T) {
 	assertNilError(t, err)
 
 	// Error case: no registered handlers
-	err = PublishEvent(ctx, 123) // 123 is int, a different type
-	assertNotNilError(t, err)
+	assert.Panics(t, func() {
+		err = PublishEvent(ctx, 123) // 123 is int, a different type
+	})
 }
 
 // TestSendCommand_Concurrency tests the SendCommand function for concurrent access.

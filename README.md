@@ -213,6 +213,8 @@ go func() {
 }()
 ```
 
+Using these functions as Go routines allows you to efficiently handle multiple operations in parallel, taking full advantage of Go's concurrency model. This approach is particularly useful in scenarios where your application needs to handle high volumes of commands, queries, or events simultaneously.
+
 ## Middleware Integration
 The GoCQRS package supports the integration of middleware, allowing you to execute additional logic before and after your command and query handlers. Middleware can be used for logging, authentication, validation, and more.
 
@@ -361,4 +363,3 @@ func main() {
 
 This example demonstrates how to attach a stateful middleware method to a query handler. The **ValidationMiddleware** method of **YourQueryHandler** can access the receiver's state and perform more sophisticated validation.
 
-Using these functions as Go routines allows you to efficiently handle multiple operations in parallel, taking full advantage of Go's concurrency model. This approach is particularly useful in scenarios where your application needs to handle high volumes of commands, queries, or events simultaneously.
