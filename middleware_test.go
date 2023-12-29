@@ -40,8 +40,8 @@ func TestPostMiddleware(t *testing.T) {
 	assert.Len(t, builder.postMiddlewares["testHandler"], 1, "postMiddlewares should contain one middleware for testHandler")
 }
 
-// TestExecutepreMiddlewares tests the execution of pre-middlewares.
-func TestExecutepreMiddlewares(t *testing.T) {
+// TestExecutePreMiddlewares tests the execution of pre-middlewares.
+func TestExecutePreMiddlewares(t *testing.T) {
 	builder := AddMiddlewareBuilder{
 		currentHandlerName: "testHandler",
 		preMiddlewares:     make(map[string][]middlewareStruct),
@@ -57,8 +57,8 @@ func TestExecutepreMiddlewares(t *testing.T) {
 	assert.Equal(t, request, modifiedRequest, "Request should not be modified as the chain is stopped by the second middleware")
 }
 
-// TestExecutepostMiddlewares tests the execution of post-middlewares.
-func TestExecutepostMiddlewares(t *testing.T) {
+// TestExecutePostMiddlewares tests the execution of post-middlewares.
+func TestExecutePostMiddlewares(t *testing.T) {
 	builder := AddMiddlewareBuilder{
 		currentHandlerName: "testHandler",
 		postMiddlewares:    make(map[string][]middlewareStruct),
