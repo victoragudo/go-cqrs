@@ -2,13 +2,14 @@ package gocqrs
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 // MockMiddlewareFunc creates a middleware function for testing.
-func MockMiddlewareFunc(continueChain bool) func(ctx context.Context, request any) (context.Context, any, bool) {
+func MockMiddlewareFunc(continueChain bool) MiddlewareFunction {
 	return func(ctx context.Context, request any) (context.Context, any, bool) {
 		return ctx, request, continueChain
 	}
@@ -16,103 +17,116 @@ func MockMiddlewareFunc(continueChain bool) func(ctx context.Context, request an
 
 // TestPreMiddleware tests the addition of pre-middlewares.
 func TestPreMiddleware(t *testing.T) {
-	builder := AddMiddlewareBuilder{
-		currentHandlerName: "testHandler",
-		preMiddlewares:     make(map[string][]middlewareStruct),
-	}
+	mediator := NewMediator()
+	AddCommandHandler[string, string](&MockCommandHandler{})
 
 	middlewareFunc := MockMiddlewareFunc(true)
+	builder := mediator.middlewareBuilder
 	builder.PreMiddleware(middlewareFunc)
 
-	assert.Len(t, builder.preMiddlewares["testHandler"], 1, "preMiddlewares should contain one middleware for testHandler")
+	// Test that middleware was added by checking the registry
+	builder.middlewareRegistry.mutex.RLock()
+	compiledMiddleware, exists := builder.middlewareRegistry.preMiddlewares[builder.currentHandlerName]
+	builder.middlewareRegistry.mutex.RUnlock()
+
+	assert.True(t, exists, "Pre-middleware should be registered")
+	assert.Len(t, compiledMiddleware.preChain, 1, "Should have one pre-middleware")
 }
 
 // TestPostMiddleware tests the addition of post-middlewares.
 func TestPostMiddleware(t *testing.T) {
-	builder := AddMiddlewareBuilder{
-		currentHandlerName: "testHandler",
-		postMiddlewares:    make(map[string][]middlewareStruct),
-	}
+	mediator := NewMediator()
+	AddCommandHandler[string, string](&MockCommandHandler{})
 
 	middlewareFunc := MockMiddlewareFunc(true)
+	builder := mediator.middlewareBuilder
 	builder.PostMiddleware(middlewareFunc)
 
-	assert.Len(t, builder.postMiddlewares["testHandler"], 1, "postMiddlewares should contain one middleware for testHandler")
+	// Test that middleware was added by checking the registry
+	builder.middlewareRegistry.mutex.RLock()
+	compiledMiddleware, exists := builder.middlewareRegistry.postMiddlewares[builder.currentHandlerName]
+	builder.middlewareRegistry.mutex.RUnlock()
+
+	assert.True(t, exists, "Post-middleware should be registered")
+	assert.Len(t, compiledMiddleware.postChain, 1, "Should have one post-middleware")
 }
 
-// TestExecutepreMiddlewares tests the execution of pre-middlewares.
-func TestExecutepreMiddlewares(t *testing.T) {
-	builder := AddMiddlewareBuilder{
-		currentHandlerName: "testHandler",
-		preMiddlewares:     make(map[string][]middlewareStruct),
-	}
+// TestPreMiddlewares tests adding multiple pre-middlewares.
+func TestPreMiddlewares(t *testing.T) {
+	mediator := NewMediator()
+	AddCommandHandler[string, string](&MockCommandHandler{})
 
-	// Add middlewares
-	builder.PreMiddleware(MockMiddlewareFunc(true))
-	builder.PreMiddleware(MockMiddlewareFunc(false)) // This should stop the chain
+	middleware1 := MockMiddlewareFunc(true)
+	middleware2 := MockMiddlewareFunc(true)
 
-	request := "original"
-	modifiedRequest := builder.executePreMiddlewares(context.Background(), request, "testHandler")
+	builder := mediator.middlewareBuilder
+	builder.PreMiddlewares(middleware1, middleware2)
 
-	assert.Equal(t, request, modifiedRequest, "Request should not be modified as the chain is stopped by the second middleware")
+	// Test that middlewares were added
+	builder.middlewareRegistry.mutex.RLock()
+	compiledMiddleware, exists := builder.middlewareRegistry.preMiddlewares[builder.currentHandlerName]
+	builder.middlewareRegistry.mutex.RUnlock()
+
+	assert.True(t, exists, "Pre-middlewares should be registered")
+	assert.Len(t, compiledMiddleware.preChain, 2, "Should have two pre-middlewares")
 }
 
-// TestExecutepostMiddlewares tests the execution of post-middlewares.
-func TestExecutepostMiddlewares(t *testing.T) {
-	builder := AddMiddlewareBuilder{
-		currentHandlerName: "testHandler",
-		postMiddlewares:    make(map[string][]middlewareStruct),
-	}
+// TestPostMiddlewares tests adding multiple post-middlewares.
+func TestPostMiddlewares(t *testing.T) {
+	mediator := NewMediator()
+	AddCommandHandler[string, string](&MockCommandHandler{})
 
-	// Add middlewares
-	builder.PostMiddleware(MockMiddlewareFunc(true))
-	builder.PostMiddleware(MockMiddlewareFunc(false)) // This should stop the chain
+	middleware1 := MockMiddlewareFunc(true)
+	middleware2 := MockMiddlewareFunc(true)
 
-	request := "original"
-	builder.executePostMiddlewares(context.Background(), request, "testHandler")
+	builder := mediator.middlewareBuilder
+	builder.PostMiddlewares(middleware1, middleware2)
 
-	// No assertion needed as we are testing the flow, not the output
+	// Test that middlewares were added
+	builder.middlewareRegistry.mutex.RLock()
+	compiledMiddleware, exists := builder.middlewareRegistry.postMiddlewares[builder.currentHandlerName]
+	builder.middlewareRegistry.mutex.RUnlock()
+
+	assert.True(t, exists, "Post-middlewares should be registered")
+	assert.Len(t, compiledMiddleware.postChain, 2, "Should have two post-middlewares")
 }
 
-// TestIsMiddlewareRegisteredForHandler tests if a middleware is correctly identified as registered.
-func TestIsMiddlewareRegisteredForHandler(t *testing.T) {
-	middlewares := []middlewareStruct{
-		{middlewareName: "Middleware1", middlewareFunc: MockMiddlewareFunc(true)},
-		{middlewareName: "Middleware2", middlewareFunc: MockMiddlewareFunc(true)},
-	}
+// TestMiddlewareExecution tests that middlewares execute correctly with commands.
+func TestMiddlewareExecution(t *testing.T) {
+	// Reset default mediator for clean test
+	defaultMediator = nil
+	once = sync.Once{}
 
-	assert.True(t, isMiddlewareRegisteredForHandler(&middlewares, "Middleware1"), "Middleware1 should be registered")
-	assert.False(t, isMiddlewareRegisteredForHandler(&middlewares, "Middleware3"), "Middleware3 should not be registered")
+	AddCommandHandler[string, string](&MockCommandHandler{}).
+		PreMiddleware(func(ctx context.Context, request any) (context.Context, any, bool) {
+			// Modify request
+			if str, ok := request.(string); ok {
+				return ctx, "pre-" + str, true
+			}
+			return ctx, request, true
+		})
+
+	ctx := context.Background()
+	response, err := SendCommand[string](ctx, "test")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "handled: pre-test", response, "Middleware should modify the request")
 }
 
-// TestMultipleMiddlewareRegistration tests if adding the same middleware multiple times is handled correctly.
-func TestMultipleMiddlewareRegistration(t *testing.T) {
-	builder := AddMiddlewareBuilder{
-		currentHandlerName: "testHandler",
-		preMiddlewares:     make(map[string][]middlewareStruct),
-	}
+// TestMiddlewareChainStop tests that middleware can stop the chain.
+func TestMiddlewareChainStop(t *testing.T) {
+	// Reset default mediator for clean test
+	defaultMediator = nil
+	once = sync.Once{}
 
-	middlewareFunc := MockMiddlewareFunc(true)
-	builder.PreMiddleware(middlewareFunc)
-	builder.PreMiddleware(middlewareFunc) // Add the same middleware again
+	AddCommandHandler[string, string](&MockCommandHandler{}).
+		PreMiddleware(func(ctx context.Context, request any) (context.Context, any, bool) {
+			return ctx, request, false // Stop the chain
+		})
 
-	assert.Len(t, builder.preMiddlewares["testHandler"], 1, "Middleware should only be registered once")
-}
+	ctx := context.Background()
+	_, err := SendCommand[string](ctx, "test")
 
-// TestMiddlewareFunctionality tests the actual functionality of the middleware.
-func TestMiddlewareFunctionality(t *testing.T) {
-	builder := AddMiddlewareBuilder{
-		currentHandlerName: "testHandler",
-		preMiddlewares:     make(map[string][]middlewareStruct),
-	}
-
-	// Middleware that modifies the request
-	modifyingMiddleware := func(ctx context.Context, request any) (context.Context, any, bool) {
-		return ctx, "modified", true
-	}
-
-	builder.PreMiddleware(modifyingMiddleware)
-
-	modifiedRequest := builder.executePreMiddlewares(context.Background(), "original", "testHandler")
-	assert.Equal(t, "modified", modifiedRequest, "Request should be modified by the middleware")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "middleware chain interrupted")
 }

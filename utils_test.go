@@ -47,32 +47,3 @@ func TestStoreAndGetMapValue(t *testing.T) {
 	_, notFound := getMapValue(m, "NonExistentKey", &mutex)
 	assert.False(t, notFound, "Non-existent key should not be found")
 }
-
-// TestCheckTypeNameInEventHandlers tests the checkTypeNameInEventHandlers function.
-func TestCheckTypeNameInEventHandlers(t *testing.T) {
-	handlers := []eventHandlersType{
-		{typeName: "Handler1"},
-		{typeName: "Handler2"},
-	}
-
-	found := checkTypeNameInEventHandlers("Handler1", handlers)
-	assert.True(t, found, "Handler1 should be found")
-
-	notFound := checkTypeNameInEventHandlers("NonExistentHandler", handlers)
-	assert.False(t, notFound, "Non-existent handler should not be found")
-}
-
-// TestLoadOrStoreEventHandlers tests the loadOrStoreEventHandlers function.
-func TestLoadOrStoreEventHandlers(t *testing.T) {
-	var mutex sync.RWMutex
-	m := make(map[string][]eventHandlersType)
-
-	handlers := loadOrStoreEventHandlers(m, "Event1", &mutex)
-	assert.Empty(t, handlers, "Handlers should be empty for a new event")
-
-	existingHandlers := []eventHandlersType{{typeName: "ExistingHandler"}}
-	m["Event1"] = existingHandlers
-
-	handlers = loadOrStoreEventHandlers(m, "Event1", &mutex)
-	assert.Equal(t, existingHandlers, handlers, "Should return existing handlers for an existing event")
-}

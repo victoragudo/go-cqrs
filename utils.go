@@ -51,26 +51,3 @@ func getMapValue(m map[string]any, key string, mutex *sync.RWMutex) (any, bool) 
 	v, ok := m[key]
 	return v, ok // Return the value and a boolean indicating if the key was found.
 }
-
-// checkTypeNameInEventHandlers checks if the string is in the slice of structs.
-// It returns true if the string is found, false otherwise.
-func checkTypeNameInEventHandlers(typeName string, eventHandlers []eventHandlersType) bool {
-	for _, v := range eventHandlers {
-		if v.typeName == typeName {
-			return true
-		}
-	}
-	return false
-}
-
-func loadOrStoreEventHandlers(m map[string][]eventHandlersType, typedEvent string, eventHandlerMutex *sync.RWMutex) []eventHandlersType {
-	eventHandlerMutex.Lock()
-	defer eventHandlerMutex.Unlock()
-
-	if handlers, exists := m[typedEvent]; exists {
-		return handlers
-	}
-
-	m[typedEvent] = make([]eventHandlersType, 0)
-	return m[typedEvent]
-}
