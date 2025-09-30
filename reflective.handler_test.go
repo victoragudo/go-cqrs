@@ -10,7 +10,7 @@ import (
 )
 
 // mockFunction is a sample function to be used with reflectiveHandler.
-func mockFunction(ctx context.Context, input string) (string, error) {
+func mockFunction(_ context.Context, input string) (string, error) {
 	return "Processed: " + input, nil
 }
 
@@ -19,7 +19,7 @@ type anotherMock struct {
 }
 
 // anotherMockFunction is a sample function to be used with reflectiveHandler.
-func (a *anotherMock) anotherMockFunction(ctx context.Context, input string) (string, error) {
+func (a *anotherMock) anotherMockFunction(_ context.Context, input string) (string, error) {
 	return "Processed: " + input, a.err
 }
 

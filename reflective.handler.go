@@ -13,7 +13,7 @@ type reflectiveHandler[T1 T, T2 T] struct {
 }
 
 // Handle executes the method associated with the reflectiveHandler,
-// passing in the context and input, and returns the result and any error.
+// passing in the context and input, and returns the result and T error.
 func (r reflectiveHandler[T1, T2]) Handle(ctx context.Context, in T1) (out T2, err error) {
 
 	// Check if the method is properly initialized

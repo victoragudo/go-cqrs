@@ -2,16 +2,17 @@ package gocqrs
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // MockCommandHandler implements ICommandHandler for testing purposes.
 type MockCommandHandler struct{}
 
-func (m *MockCommandHandler) Handle(ctx context.Context, command string) (string, error) {
+func (m *MockCommandHandler) Handle(_ context.Context, command string) (string, error) {
 	return "handled: " + command, nil
 }
 
@@ -56,19 +57,20 @@ func TestCommandHandlerWrapper_Handle(t *testing.T) {
 // TestAddCommandHandler tests the AddCommandHandler function.
 func TestAddCommandHandler(t *testing.T) {
 	mockHandler := &MockCommandHandler{}
-	AddCommandHandler[string, string](mockHandler)
+	middlewareBuilder := AddCommandHandler[string, string](mockHandler)
 
-	// Verify if the handler was added correctly
-	handler, ok := handlers["string"]
-	if !ok {
-		t.Fatal("Handler not found in commandHandlers")
+	// Verify the middleware builder was returned
+	if middlewareBuilder == nil {
+		t.Fatal("MiddlewareBuilder not returned from AddCommandHandler")
 	}
 
-	// Assert that it's the correct type
-	_, ok = handler.(*handlerWrapper[string, string])
-	if !ok {
-		t.Errorf("Handler is not of type *commandHandlerWrapper[string, string]")
+	// Verify handler was registered by trying to send a command
+	ctx := context.Background()
+	response, err := SendCommand[string](ctx, "test")
+	if err != nil {
+		t.Fatal("Handler was not registered correctly")
 	}
+	assertEqual(t, "handled: test", response)
 }
 
 // TestSendCommand tests the SendCommand function.
@@ -83,9 +85,8 @@ func TestSendCommand(t *testing.T) {
 	assertEqual(t, "handled: "+command, response)
 
 	// Error case: no registered handler
-	assert.Panics(t, func() {
-		_, err = SendCommand[int](ctx, 123)
-	})
+	_, err = SendCommand[int](ctx, 123)
+	assert.Error(t, err, "Should return error when no handler is registered")
 }
 
 // MockEventHandler for events
@@ -95,7 +96,7 @@ func newMockEventHandler() *MockEventHandler {
 	return &MockEventHandler{}
 }
 
-func (m *MockEventHandler) Handle(ctx context.Context, event string) error {
+func (m *MockEventHandler) Handle(context.Context, string) error {
 	return nil
 }
 
@@ -111,9 +112,8 @@ func TestPublishEvent(t *testing.T) {
 	assertNilError(t, err)
 
 	// Error case: no registered handlers
-	assert.Panics(t, func() {
-		err = PublishEvent(ctx, 123) // 123 is int, a different type
-	})
+	err = PublishEvent(ctx, 123) // 123 is int, a different type
+	assert.Error(t, err, "Should return error when no handlers are registered")
 }
 
 // TestSendCommand_Concurrency tests the SendCommand function for concurrent access.
@@ -197,7 +197,7 @@ func TestSendQuery_Concurrency(t *testing.T) {
 // MockQueryHandler implements IQueryHandler for testing purposes.
 type MockQueryHandler struct{}
 
-func (m *MockQueryHandler) Handle(ctx context.Context, query string) (string, error) {
+func (m *MockQueryHandler) Handle(_ context.Context, query string) (string, error) {
 	return "handled: " + query, nil
 }
 
@@ -231,7 +231,7 @@ func TestPublishEvent_Concurrency(t *testing.T) {
 		}()
 	}
 
-	// Check for any errors received.
+	// Check for T errors received.
 	for i := 0; i < numGoroutines; i++ {
 		err := <-errors
 		if err != nil {
