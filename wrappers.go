@@ -19,7 +19,7 @@ type (
 
 // Handle method for commandHandlerWrapper.
 // It takes a context and input parameter of generic type T,
-// and returns a response of type T and an error if any.
+// and returns a response of type T and an error if T.
 func (handlerWrapper *handlerWrapper[T1, T2]) Handle(ctx context.Context, in T) (T, error) {
 	// Assert the type of commandRequest to CommandRequest.
 	typedIn, ok := in.(T1)
@@ -35,13 +35,6 @@ func (handlerWrapper *handlerWrapper[T1, T2]) Handle(ctx context.Context, in T) 
 func newHandlerWrapper[T1 T, T2 T](handler IHandler[T1, T2], handlerName string) *handlerWrapper[T1, T2] {
 	return &handlerWrapper[T1, T2]{
 		Handler: handler,
-		Name:    handlerName,
-	}
-}
-
-func newEventHandlerWrapper[T1 T](handler IEventHandler[T1], handlerName string) *handlerWrapper[T1, T] {
-	return &handlerWrapper[T1, T]{
-		Handler: &eventHandlerAdapter[T1]{eventHandler: handler},
 		Name:    handlerName,
 	}
 }

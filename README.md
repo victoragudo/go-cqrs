@@ -240,7 +240,7 @@ func (h *YourCommandHandler) Handle(ctx context.Context, command YourCommand) (Y
 }
 
 // Middleware function example
-func loggingMiddleware(ctx context.Context, request any) (context.Context, any, bool) {
+func loggingMiddleware(ctx context.Context, request T) (context.Context, T, bool) {
     fmt.Println("Executing command:", request)
     return ctx, request, true // Continue with next middleware or handler
 }
@@ -269,7 +269,7 @@ The process of adding middleware to a query handler is similar to adding it to a
 // Define your query, response, and query handler as usual
 
 // Middleware function
-func validationMiddleware(ctx context.Context, request any) (context.Context, any, bool) {
+func validationMiddleware(ctx context.Context, request T) (context.Context, T, bool) {
     // Perform validation
     // Return false if validation fails
     return ctx, request, true
@@ -306,7 +306,7 @@ type YourCommandResponse struct {
 }
 
 type CommandHandler struct {
-    // Receiver's fields (if any)
+// Receiver's fields (if T)
 }
 
 func (h *CommandHandler) Handle(ctx context.Context, command YourCommand) (YourCommandResponse, error) {
@@ -314,7 +314,7 @@ func (h *CommandHandler) Handle(ctx context.Context, command YourCommand) (YourC
 }
 
 // Middleware as a method of the receiver
-func (h *CommandHandler) LoggingMiddleware(ctx context.Context, request any) (context.Context, any, bool) {
+func (h *CommandHandler) LoggingMiddleware(ctx context.Context, request T) (context.Context, T, bool) {
     fmt.Println("Logging command execution:", request)
     return ctx, request, true // Continue with next middleware or handler
 }
@@ -342,7 +342,7 @@ You can similarly add stateful middleware to a query handler using a receiver.
 // Define your query, response, and query handler receiver
 
 // Stateful middleware as a method of the receiver
-func (h *YourQueryHandler) ValidationMiddleware(ctx context.Context, request any) (context.Context, any, bool) {
+func (h *YourQueryHandler) ValidationMiddleware(ctx context.Context, request T) (context.Context, T, bool) {
     // Perform stateful validation
     return ctx, request, true
 }

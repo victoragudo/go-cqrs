@@ -10,7 +10,7 @@ import (
 
 // MockMiddlewareFunc creates a middleware function for testing.
 func MockMiddlewareFunc(continueChain bool) MiddlewareFunction {
-	return func(ctx context.Context, request any) (context.Context, any, bool) {
+	return func(ctx context.Context, request T) (context.Context, T, bool) {
 		return ctx, request, continueChain
 	}
 }
@@ -98,7 +98,7 @@ func TestMiddlewareExecution(t *testing.T) {
 	once = sync.Once{}
 
 	AddCommandHandler[string, string](&MockCommandHandler{}).
-		PreMiddleware(func(ctx context.Context, request any) (context.Context, any, bool) {
+		PreMiddleware(func(ctx context.Context, request T) (context.Context, T, bool) {
 			// Modify request
 			if str, ok := request.(string); ok {
 				return ctx, "pre-" + str, true
@@ -120,7 +120,7 @@ func TestMiddlewareChainStop(t *testing.T) {
 	once = sync.Once{}
 
 	AddCommandHandler[string, string](&MockCommandHandler{}).
-		PreMiddleware(func(ctx context.Context, request any) (context.Context, any, bool) {
+		PreMiddleware(func(ctx context.Context, request T) (context.Context, T, bool) {
 			return ctx, request, false // Stop the chain
 		})
 

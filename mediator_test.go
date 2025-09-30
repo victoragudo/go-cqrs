@@ -231,7 +231,7 @@ func TestPublishEvent_Concurrency(t *testing.T) {
 		}()
 	}
 
-	// Check for any errors received.
+	// Check for T errors received.
 	for i := 0; i < numGoroutines; i++ {
 		err := <-errors
 		if err != nil {

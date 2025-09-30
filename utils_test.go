@@ -37,7 +37,7 @@ func TestGetMethodByName(t *testing.T) {
 // TestStoreAndGetMapValue tests the storeMapValue and getMapValue functions.
 func TestStoreAndGetMapValue(t *testing.T) {
 	var mutex sync.RWMutex
-	m := make(map[string]any)
+	m := make(map[string]T)
 
 	storeMapValue(m, "key", "value", &mutex)
 	value, found := getMapValue(m, "key", &mutex)

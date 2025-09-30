@@ -8,12 +8,12 @@ import (
 	"sync"
 )
 
-// eventHandlerWrapper wraps a typed event handler to implement IEventHandler[any]
+// eventHandlerWrapper wraps a typed event handler to implement IEventHandler[T]
 type eventHandlerWrapper[TEvent T] struct {
 	handler IEventHandler[TEvent]
 }
 
-func (wrapper *eventHandlerWrapper[TEvent]) Handle(ctx context.Context, event any) error {
+func (wrapper *eventHandlerWrapper[TEvent]) Handle(ctx context.Context, event T) error {
 	if typedEvent, ok := event.(TEvent); ok {
 		return wrapper.handler.Handle(ctx, typedEvent)
 	}
@@ -103,7 +103,7 @@ func AddEventHandlers[TEvent T](eventHandlers ...IEventHandler[TEvent]) error {
 	for _, handler := range eventHandlers {
 		handlerName := reflect.TypeOf(handler).String()
 
-		// Check if handler is already registered
+		// Check if the handler is already registered
 		alreadyExists := false
 		for _, existing := range existingHandlers {
 			if existing.name == handlerName {
@@ -113,7 +113,7 @@ func AddEventHandlers[TEvent T](eventHandlers ...IEventHandler[TEvent]) error {
 		}
 
 		if !alreadyExists {
-			// Create wrapper to convert typed handler to any handler
+			// Create a wrapper to convert typed handler to T handler
 			anyHandler := &eventHandlerWrapper[TEvent]{handler: handler}
 			registeredEventHandler := RegisteredEventHandler{
 				handler: anyHandler,
@@ -128,17 +128,17 @@ func AddEventHandlers[TEvent T](eventHandlers ...IEventHandler[TEvent]) error {
 }
 
 // SendCommand executes a command using the default mediator
-func SendCommand[CommandResponse T](ctx context.Context, command any) (CommandResponse, error) {
+func SendCommand[CommandResponse T](ctx context.Context, command T) (CommandResponse, error) {
 	return sendRequest[CommandResponse](ctx, command)
 }
 
 // SendQuery executes a query using the default mediator
-func SendQuery[QueryResponse T](ctx context.Context, query any) (QueryResponse, error) {
+func SendQuery[QueryResponse T](ctx context.Context, query T) (QueryResponse, error) {
 	return sendRequest[QueryResponse](ctx, query)
 }
 
 // sendRequest executes a request by finding the appropriate handler
-func sendRequest[Response T](ctx context.Context, request any) (Response, error) {
+func sendRequest[Response T](ctx context.Context, request T) (Response, error) {
 	mediator := GetDefaultMediator()
 	var zeroResponse Response
 	requestType := reflect.TypeOf(request)
@@ -198,12 +198,12 @@ func sendRequest[Response T](ctx context.Context, request any) (Response, error)
 }
 
 // PublishEvent publishes an event to all registered event handlers using the default mediator
-func PublishEvent(ctx context.Context, event any) error {
+func PublishEvent(ctx context.Context, event T) error {
 	return GetDefaultMediator().publishEvent(ctx, event)
 }
 
 // publishEvent publishes an event to all registered event handlers
-func (mediator *Mediator) publishEvent(ctx context.Context, event any) error {
+func (mediator *Mediator) publishEvent(ctx context.Context, event T) error {
 	eventType := reflect.TypeOf(event)
 
 	mediator.eventRegistry.mutex.RLock()
@@ -241,7 +241,7 @@ func (mediator *Mediator) publishEvent(ctx context.Context, event any) error {
 }
 
 // executePreMiddlewares executes pre-middlewares for a request
-func (mediator *Mediator) executePreMiddlewares(ctx context.Context, request any, handlerName string) (context.Context, any, bool) {
+func (mediator *Mediator) executePreMiddlewares(ctx context.Context, request T, handlerName string) (context.Context, T, bool) {
 	mediator.middlewareBuilder.middlewareRegistry.mutex.RLock()
 	compiledMiddleware, exists := mediator.middlewareBuilder.middlewareRegistry.preMiddlewares[handlerName]
 	mediator.middlewareBuilder.middlewareRegistry.mutex.RUnlock()
@@ -265,7 +265,7 @@ func (mediator *Mediator) executePreMiddlewares(ctx context.Context, request any
 }
 
 // executePostMiddlewares executes post-middlewares for a request
-func (mediator *Mediator) executePostMiddlewares(ctx context.Context, request any, handlerName string) {
+func (mediator *Mediator) executePostMiddlewares(ctx context.Context, request T, handlerName string) {
 	mediator.middlewareBuilder.middlewareRegistry.mutex.RLock()
 	compiledMiddleware, exists := mediator.middlewareBuilder.middlewareRegistry.postMiddlewares[handlerName]
 	mediator.middlewareBuilder.middlewareRegistry.mutex.RUnlock()

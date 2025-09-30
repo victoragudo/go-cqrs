@@ -34,7 +34,7 @@ type (
 	}
 
 	RegisteredEventHandler struct {
-		handler IEventHandler[any]
+		handler IEventHandler[T]
 		name    string
 	}
 
@@ -43,7 +43,7 @@ type (
 		postChain []MiddlewareFunction
 	}
 
-	MiddlewareFunction func(context context.Context, request any) (modifiedContext context.Context, modifiedRequest any, shouldContinue bool)
+	MiddlewareFunction func(context context.Context, request T) (modifiedContext context.Context, modifiedRequest T, shouldContinue bool)
 
 	MiddlewareRegistry struct {
 		preMiddlewares  map[string]CompiledMiddleware

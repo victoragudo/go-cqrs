@@ -37,7 +37,7 @@ func getMethodByName(value reflect.Value, methodName string) (reflect.Value, boo
 }
 
 // storeMapValue stores a value with a string key in the given map.
-func storeMapValue(m map[string]any, key string, value any, mutex *sync.RWMutex) {
+func storeMapValue(m map[string]T, key string, value T, mutex *sync.RWMutex) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	m[key] = value
@@ -45,7 +45,7 @@ func storeMapValue(m map[string]any, key string, value any, mutex *sync.RWMutex)
 
 // getMapValue retrieves a value by key from the given map.
 // It returns the value and a boolean indicating if the key was found in the map.
-func getMapValue(m map[string]any, key string, mutex *sync.RWMutex) (any, bool) {
+func getMapValue(m map[string]T, key string, mutex *sync.RWMutex) (T, bool) {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	v, ok := m[key]
