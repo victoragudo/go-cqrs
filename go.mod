@@ -1,4 +1,4 @@
-module github.com/victoragudo/go-cqrs
+module github.com/victoragudo/go-cqrs/v2
 
 go 1.25.1
 
